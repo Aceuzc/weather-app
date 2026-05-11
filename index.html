@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Weather Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Animated weather background layer -->
+  <div id="weather-bg" class="weather-bg"></div>
+
+  <div class="app">
+    <!-- Compact Icon Sidebar -->
+    <nav class="sidebar">
+      <div class="nav-logo">☁️</div>
+      <ul class="nav-menu">
+        <li><a href="#" class="nav-icon active" title="Dashboard">📊</a></li>
+        <li><a href="#" class="nav-icon" title="Analytics">📈</a></li>
+        <li><a href="#" class="nav-icon" title="Alerts">🔔</a></li>
+        <li><a href="#" class="nav-icon" title="Settings">⚙️</a></li>
+        <li><a href="#" class="nav-icon" title="Help">❓</a></li>
+      </ul>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <!-- Top Search Bar -->
+      <div class="top-bar">
+        <form id="search-form" class="search-bar">
+          <input id="city-input" type="search" placeholder="Search for location" aria-label="Search">
+          <button type="submit">Search</button>
+          <button type="button" id="geo-btn" title="Use my location" class="geo-btn">📍</button>
+        </form>
+        <div class="day-display" id="day-display">Tuesday</div>
+      </div>
+
+      <!-- Main Grid: Weather | Map | Cities -->
+      <div class="main-grid">
+        <!-- Left: Current Weather -->
+        <div class="section weather-section floating-card float-delay-1">
+          <div class="weather-card">
+            <div class="weather-card-header">
+              <h3>Current Weather</h3>
+              <button id="share-btn" class="share-btn" title="Share weather card">📸 Share</button>
+            </div>
+            <div class="weather-display">
+              <div class="weather-icon-large" id="weather-icon">☀️</div>
+              <div class="temp-block">
+                <div class="temp" id="temp">24</div>
+                <div class="temp-unit">°C</div>
+              </div>
+            </div>
+            <div class="desc" id="desc">Heavy Rain</div>
+            <div class="city-name" id="city-name">--</div>
+            <div class="weather-stats">
+              <div class="stat"><span class="label">💧</span><span class="value" id="stat-humidity">--</span></div>
+              <div class="stat"><span class="label">💨</span><span class="value" id="stat-wind">--</span></div>
+              <div class="stat"><span class="label">🌡️</span><span class="value" id="stat-pressure">--</span></div>
+              <div class="stat"><span class="label">👁️</span><span class="value" id="stat-visibility">--</span></div>
+            </div>
+            <!-- Mood Board -->
+            <div class="mood-board" id="mood-board">
+              <div class="mood-label">Today's Vibe</div>
+              <div class="mood-swatches" id="mood-swatches">
+                <div class="mood-swatch" style="background:#3a7bd5"></div>
+                <div class="mood-swatch" style="background:#3a6073"></div>
+                <div class="mood-swatch" style="background:#00d2ff"></div>
+                <div class="mood-swatch" style="background:#e0eafc"></div>
+              </div>
+              <div class="mood-vibe-text" id="mood-vibe-text">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center: Map Section -->
+        <div class="section map-section floating-card float-delay-2">
+          <div class="map-card">
+            <h3>Weather Map</h3>
+            <iframe id="weather-map" width="100%" height="100%" frameborder="0"
+              src="https://www.openstreetmap.org/export/embed.html?bbox=120.8%2C14.4%2C121.1%2C14.8&layer=mapnik&marker=14.5995%2C120.9842" style="border-radius: 12px;"></iframe>
+          </div>
+        </div>
+
+        <!-- Right: Popular Cities -->
+        <div class="section cities-section floating-card float-delay-3">
+          <div class="cities-card">
+            <div class="cities-header">
+              <h3>Popular Cities</h3>
+              <a href="#" class="view-more">View more →</a>
+            </div>
+            <div class="cities-list" id="cities-list">
+              <div class="city-item">
+                <span class="city-name">Delhi</span>
+                <span class="city-condition">Partly Cloudy</span>
+              </div>
+              <div class="city-item">
+                <span class="city-name">Mumbai</span>
+                <span class="city-condition">Drizzle Rain</span>
+              </div>
+              <div class="city-item">
+                <span class="city-name">Hyderabad</span>
+                <span class="city-condition">Heavy Rain</span>
+              </div>
+              <div class="city-item">
+                <span class="city-name">Bangalore</span>
+                <span class="city-condition">Light Showers</span>
+              </div>
+              <div class="city-item">
+                <span class="city-name">Kolkata</span>
+                <span class="city-condition">Mostly Sunny</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: Forecast & Summary -->
+      <div class="bottom-section">
+        <!-- Forecast Section -->
+        <div class="forecast-section floating-card float-delay-4">
+          <div class="section-header">
+            <h3>Forecast</h3>
+            <div class="forecast-tabs" id="forecast-tabs">
+              <button class="tab-btn active" data-days="6">6 Days</button>
+              <button class="tab-btn" data-days="5">5 Days</button>
+              <button class="tab-btn" data-days="3">3 Days</button>
+            </div>
+          </div>
+          <div class="forecast" id="forecast"></div>
+        </div>
+
+        <!-- Summary/Hourly Chart Section -->
+        <div class="summary-section floating-card float-delay-5">
+          <div class="section-header">
+            <h3>Summary</h3>
+            <div class="summary-tabs" id="summary-tabs">
+              <button class="tab-btn active" data-view="summary">Summary</button>
+              <button class="tab-btn" data-view="hourly">Hourly</button>
+              <button class="tab-btn" data-view="details">More Details</button>
+              <button class="tab-btn" data-view="outfit">👕 Outfit</button>
+            </div>
+          </div>
+          <div class="ai-summary" id="ai-summary">
+            <div class="ai-summary-title">AI Weather Summary</div>
+            <div class="ai-summary-text" id="ai-summary-text">--</div>
+          </div>
+          <div class="summary-content" id="summary-content">
+            <div class="summary-panel active" id="panel-summary">
+              <div class="summary-chart" id="summary-chart">
+                <canvas id="chart-canvas"></canvas>
+              </div>
+            </div>
+            <div class="summary-panel" id="panel-hourly">
+              <div class="hourly-list" id="hourly-list"></div>
+            </div>
+            <div class="summary-panel" id="panel-details">
+              <div class="details-grid" id="details-grid"></div>
+            </div>
+            <!-- NEW: Outfit / Activity Panel -->
+            <div class="summary-panel" id="panel-outfit">
+              <div class="outfit-content" id="outfit-content">
+                <div class="outfit-placeholder">Search a city to get outfit suggestions</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
