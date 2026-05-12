@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="color-scheme" content="dark">
   <title>Weather Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -32,8 +34,12 @@
           <button type="submit">Search</button>
           <button type="button" id="geo-btn" title="Use my location" class="geo-btn">📍</button>
         </form>
+        <button id="compare-btn" class="compare-open-btn" title="Compare cities">⚖️ Compare</button>
         <div class="day-display" id="day-display">Tuesday</div>
       </div>
+
+      <!-- Weather Alerts Banner -->
+      <div id="alerts-banner" class="alerts-banner" style="display:none"></div>
 
       <!-- Main Grid: Weather | Map | Cities -->
       <div class="main-grid">
@@ -137,6 +143,7 @@
             <div class="summary-tabs" id="summary-tabs">
               <button class="tab-btn active" data-view="summary">Summary</button>
               <button class="tab-btn" data-view="hourly">Hourly</button>
+              <button class="tab-btn" data-view="feellike">🌡️ Feel</button>
               <button class="tab-btn" data-view="details">More Details</button>
               <button class="tab-btn" data-view="outfit">👕 Outfit</button>
             </div>
@@ -157,16 +164,43 @@
             <div class="summary-panel" id="panel-details">
               <div class="details-grid" id="details-grid"></div>
             </div>
-            <!-- NEW: Outfit / Activity Panel -->
+            <!-- Outfit / Activity Panel -->
             <div class="summary-panel" id="panel-outfit">
               <div class="outfit-content" id="outfit-content">
                 <div class="outfit-placeholder">Search a city to get outfit suggestions</div>
+              </div>
+            </div>
+            <!-- Feel Like Timeline Panel -->
+            <div class="summary-panel" id="panel-feellike">
+              <div class="summary-chart" id="feellike-chart">
+                <canvas id="feellike-canvas"></canvas>
               </div>
             </div>
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- City Comparison Modal -->
+  <div id="compare-modal" class="compare-modal" style="display:none">
+    <div class="compare-overlay" id="compare-overlay"></div>
+    <div class="compare-dialog floating-card">
+      <div class="compare-header">
+        <div>
+          <h2 class="compare-title">⚖️ City Comparison</h2>
+          <p class="compare-subtitle">Pin up to 3 cities and compare side by side</p>
+        </div>
+        <button id="compare-close" class="compare-close">✕</button>
+      </div>
+      <div class="compare-search-row">
+        <input id="compare-city-input" type="text" class="compare-city-input" placeholder="Search a city to add…">
+        <button id="compare-add-btn" class="compare-add-btn">+ Add City</button>
+      </div>
+      <div id="compare-grid" class="compare-grid">
+        <div class="compare-empty">Add cities above to start comparing</div>
+      </div>
+    </div>
   </div>
 
   <script src="script.js"></script>

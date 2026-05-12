@@ -23,6 +23,10 @@ html,body{
   overflow:hidden;
 }
 
+@media (max-width: 1023px) {
+  html, body { height: auto; overflow-x: hidden; overflow-y: auto; }
+}
+
 body{
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   background: fixed linear-gradient(135deg, #1e3a8a 0%, #0f172a 50%, #1a1f35 100%);
@@ -38,6 +42,17 @@ body{
   overflow:hidden;
   position:relative;
   z-index:1;
+}
+
+/* Main Content */
+.main-content{
+  flex:1;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  overflow-y:auto;
+  padding:16px 24px;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ===== Floating Animation ===== */
@@ -139,14 +154,6 @@ body{
   50%      { transform: translateY(-3px); }
 }
 
-/* Main Content */
-.main-content{
-  flex:1;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  padding:16px 24px;
-}
 
 /* Top Search Bar */
 .top-bar{
@@ -1092,81 +1099,528 @@ body{
 }
 
 /* ============================================================
-   RESPONSIVE
+   RESPONSIVE — full multi-breakpoint system
    ============================================================ */
 
-@media (max-width:1024px){
-  .main-grid{
-    grid-template-columns:1fr;
-  }
-  
-  .bottom-section{
-    grid-template-columns:1fr;
+/* ── Large desktop (1280px+): default layout, nothing to override ── */
+
+/* ── Constrained desktop (1024 – 1279px) ── */
+@media (max-width: 1279px) {
+  .main-grid {
+    grid-template-columns: 1fr 1.6fr 1fr;
+    gap: 12px;
   }
 }
 
-@media (max-width:768px){
-  .sidebar{
-    width:60px;
-    padding:12px 0;
+/* ── Tablet landscape (768 – 1023px) ── */
+@media (max-width: 1023px) {
+  .app {
+    overflow: hidden auto;
   }
-  
-  .nav-menu{
-    gap:16px;
+
+  html, body {
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
   }
-  
-  .nav-icon{
-    width:40px;
-    height:40px;
-    font-size:18px;
+
+  .main-content {
+    overflow: visible;
+    height: auto;
+    padding: 14px 18px 24px;
   }
-  
-  .nav-logo{
-    font-size:24px;
-    margin-bottom:20px;
+
+  .main-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
   }
-  
-  .main-content{
-    padding:12px 16px;
+
+  /* Map spans full width on tablet */
+  .map-section {
+    grid-column: 1 / -1;
+    min-height: 240px;
   }
-  
-  .weather-card, .map-card, .cities-card{
-    padding:16px;
+
+  .map-card iframe {
+    min-height: 220px;
+  }
+
+  .bottom-section {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  /* Allow cards to have natural height */
+  .weather-card, .map-card, .cities-card,
+  .forecast-section, .summary-section {
+    height: auto;
+    min-height: 200px;
+  }
+
+  .cities-list {
+    max-height: 260px;
+  }
+
+  .forecast {
+    grid-template-columns: repeat(auto-fit, minmax(72px, 1fr));
+  }
+
+  .summary-tabs {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .tab-btn {
+    font-size: 11px;
+    padding: 5px 10px;
   }
 }
 
-@media (max-width:480px){
-  .sidebar{
-    position:absolute;
-    left:0;
-    width:60px;
-    height:100%;
-    z-index:100;
-  }
-  
-  .main-content{
-    margin-left:60px;
-    padding:8px 12px;
-  }
-  
-  .main-grid{
-    grid-template-columns:1fr;
-    gap:12px;
-    margin-bottom:12px;
-  }
-  
-  .bottom-section{
-    grid-template-columns:1fr;
-    gap:12px;
-  }
-  
-  .search-bar{
-    max-width:100%;
+/* ── Tablet portrait (600 – 767px) ── */
+@media (max-width: 767px) {
+  .sidebar {
+    width: 60px;
+    padding: 10px 0;
+    margin: 8px 0 8px 8px;
+    border-radius: 16px;
   }
 
-  .sun-container,
-  .moon-orb {
-    right: 20px;
+  .nav-logo {
+    font-size: 26px;
+    margin-bottom: 24px;
+  }
+
+  .nav-menu { gap: 18px; }
+
+  .nav-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
+    border-radius: 10px;
+  }
+
+  .main-content {
+    padding: 12px 14px 24px;
+  }
+
+  .top-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .search-bar {
+    flex: 1 1 100%;
+    max-width: 100%;
+    order: 1;
+  }
+
+  .compare-open-btn {
+    order: 2;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .day-display {
+    order: 3;
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .map-section {
+    grid-column: auto;
+    min-height: 200px;
+  }
+
+  .map-card iframe { min-height: 185px; }
+
+  .bottom-section {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Horizontal-scroll tabs */
+  .summary-tabs, .forecast-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .summary-tabs::-webkit-scrollbar,
+  .forecast-tabs::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .weather-display { gap: 10px; }
+  .weather-icon-large { font-size: 48px; }
+  .temp { font-size: 42px; }
+
+  .weather-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .forecast {
+    grid-template-columns: repeat(auto-fit, minmax(68px, 1fr));
+    gap: 6px;
+  }
+
+  .sun-container, .moon-orb { right: 24px; }
+
+  /* Compare modal full-screen */
+  .compare-dialog {
+    max-width: 100%;
+    max-height: 92vh;
+    padding: 20px 16px;
+    border-radius: 16px;
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Small mobile (< 480px) ── */
+@media (max-width: 479px) {
+  html, body {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  /* Sidebar converts to bottom navigation */
+  .sidebar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 60px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-around;
+    margin: 0;
+    padding: 0 8px env(safe-area-inset-bottom, 0px);
+    border-radius: 0;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    border-bottom: none;
+    border-left: none;
+    border-right: none;
+    z-index: 200;
+    animation: none;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+    height: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .nav-logo { display: none; }
+
+  .nav-menu {
+    flex-direction: row;
+    gap: 0;
+    flex: 1;
+    justify-content: space-around;
+  }
+
+  .nav-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+    border-radius: 10px;
+  }
+
+  .app {
+    flex-direction: column;
+    overflow: visible;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .main-content {
+    padding: 12px 12px calc(80px + env(safe-area-inset-bottom, 0px));
+    overflow: visible;
+    height: auto;
+    width: 100%;
+  }
+
+  .top-bar {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .search-bar {
+    flex: 1 1 100%;
+    max-width: 100%;
+    order: 1;
+  }
+
+  .search-bar input {
+    font-size: 16px; /* prevents iOS zoom */
+  }
+
+  .compare-open-btn {
+    order: 2;
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    padding: 9px 10px;
+  }
+
+  .day-display {
+    order: 3;
+    font-size: 12px;
+    padding: 9px 12px;
+  }
+
+  .main-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .map-section {
+    min-height: 180px;
+  }
+
+  .map-card iframe {
+    min-height: 160px;
+  }
+
+  .bottom-section {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Card sizing */
+  .weather-card, .map-card, .cities-card {
+    padding: 14px;
+  }
+
+  .forecast-section, .summary-section {
+    padding: 12px;
+  }
+
+  /* Current weather */
+  .weather-card-header h3, .map-card h3, .cities-card h3 {
+    font-size: 12px;
+  }
+
+  .weather-display {
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+
+  .weather-icon-large { font-size: 44px; }
+  .temp { font-size: 40px; }
+  .temp-unit { font-size: 18px; }
+
+  .desc { font-size: 13px; }
+  .city-name { font-size: 11px; }
+
+  .weather-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .stat {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
+  .stat .value { font-size: 12px; }
+
+  /* Mood board */
+  .mood-board {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mood-swatch {
+    width: 18px;
+    height: 18px;
+  }
+
+  .mood-vibe-text { font-size: 9px; }
+
+  /* Forecast */
+  .forecast {
+    grid-template-columns: repeat(auto-fit, minmax(62px, 1fr));
+    gap: 6px;
+  }
+
+  .forecast-item {
+    padding: 8px 6px;
+  }
+
+  .forecast-item .icon { font-size: 22px; }
+  .forecast-item .ftemp { font-size: 13px; }
+  .forecast-item .time { font-size: 11px; }
+  .forecast-item .date { font-size: 9px; }
+  .forecast-item .ftemp-low { font-size: 10px; }
+
+  /* Summary tabs — horizontal scroll */
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .summary-tabs, .forecast-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    padding-bottom: 2px;
+    width: 100%;
+    scrollbar-width: none;
+  }
+  .summary-tabs::-webkit-scrollbar,
+  .forecast-tabs::-webkit-scrollbar { display: none; }
+
+  .tab-btn {
+    font-size: 11px;
+    padding: 5px 9px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* AI Summary box */
+  .ai-summary {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  .ai-summary-text { font-size: 11px; }
+
+  /* Hourly list */
+  .hourly-item {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .hourly-time { font-size: 11px; min-width: 58px; }
+  .hourly-icon { font-size: 18px; }
+  .hourly-temp { font-size: 12px; }
+  .hourly-desc { font-size: 10px; }
+  .hourly-wind { font-size: 10px; min-width: 50px; }
+
+  /* More details */
+  .details-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+  }
+
+  .detail-card { padding: 10px; gap: 3px; }
+  .detail-icon { font-size: 18px; }
+  .detail-value { font-size: 16px; }
+  .detail-label { font-size: 10px; }
+  .detail-sub { font-size: 9px; }
+
+  /* Outfit panel */
+  .outfit-hero { gap: 10px; padding: 12px; }
+  .outfit-icon-large { font-size: 32px; }
+  .outfit-clothes-text { font-size: 13px; }
+  .activity-chips { gap: 5px; }
+  .activity-chip { font-size: 11px; padding: 4px 9px; }
+  .outfit-tip-bar { font-size: 11px; padding: 10px 12px; }
+
+  /* Cities list */
+  .city-item { font-size: 11px; padding: 7px; }
+  .city-item .city-name { font-size: 12px; }
+
+  /* Alerts */
+  .alert-item {
+    padding: 9px 12px;
+    gap: 10px;
+  }
+  .alert-text { font-size: 12px; }
+  .alert-title { font-size: 11px; }
+
+  /* Share button */
+  .share-btn {
+    font-size: 10px;
+    padding: 4px 8px;
+  }
+
+  /* Background decorations */
+  .sun-container, .moon-orb { right: 12px; top: 12px; }
+  .sun-container { width: 80px; height: 80px; }
+
+  /* Compare modal — full screen */
+  .compare-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .compare-dialog {
+    max-width: 100%;
+    width: 100%;
+    max-height: 88vh;
+    border-radius: 20px 20px 0 0;
+    padding: 18px 14px 24px;
+  }
+
+  .compare-title { font-size: 17px; }
+  .compare-subtitle { font-size: 11px; }
+
+  .compare-search-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .compare-add-btn {
+    width: 100%;
+    padding: 11px;
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .compare-card { padding: 14px; }
+  .compare-card-temp { font-size: 28px; }
+
+  /* Feel-like chart legend */
+  .feellike-legend {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    justify-content: flex-start;
+  }
+
+  .legend-item { font-size: 10px; }
+}
+
+/* ── Tiny screens (< 360px) ── */
+@media (max-width: 359px) {
+  .main-content { padding: 10px 10px 76px; }
+
+  .temp { font-size: 36px; }
+  .weather-icon-large { font-size: 38px; }
+
+  .forecast {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .details-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .nav-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 20px;
   }
 }
 
@@ -1175,4 +1629,428 @@ body{
   .weather-bg * {
     animation: none !important;
   }
+}
+
+/* Disable floating animations on mobile — causes scroll jank */
+@media (max-width: 767px) {
+  .floating-card {
+    animation: fadeInUp 0.5s ease-out both !important;
+  }
+  .float-delay-1 { animation-delay: 0s !important; }
+  .float-delay-2 { animation-delay: 0.06s !important; }
+  .float-delay-3 { animation-delay: 0.12s !important; }
+  .float-delay-4 { animation-delay: 0.18s !important; }
+  .float-delay-5 { animation-delay: 0.24s !important; }
+  .nav-icon.active { animation: none !important; }
+  .sidebar { animation: none !important; }
+}
+
+/* ============================================================
+   ALERTS BANNER
+   ============================================================ */
+
+.alerts-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 1.5;
+  position: relative;
+  animation: fadeInUp 0.3s ease-out both;
+}
+
+.alert-item.severity-danger {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.alert-item.severity-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fcd34d;
+}
+
+.alert-item.severity-info {
+  background: rgba(110, 231, 183, 0.07);
+  border-color: rgba(110, 231, 183, 0.2);
+  color: var(--text-light);
+}
+
+.alert-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.alert-body {
+  flex: 1;
+}
+
+.alert-title {
+  font-weight: 700;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+  opacity: 0.75;
+}
+
+.alert-text {
+  font-size: 13px;
+  opacity: 0.92;
+}
+
+.alert-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.alert-dismiss:hover { opacity: 1; }
+
+/* ============================================================
+   COMPARE BUTTON (TOP BAR)
+   ============================================================ */
+
+.compare-open-btn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.06);
+  color: var(--text-light);
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.compare-open-btn:hover {
+  background: rgba(110,231,183,0.12);
+  border-color: rgba(110,231,183,0.3);
+  color: var(--accent);
+  transform: scale(1.03);
+}
+
+/* ============================================================
+   COMPARE MODAL
+   ============================================================ */
+
+.compare-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.compare-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+}
+
+.compare-dialog {
+  position: relative;
+  z-index: 501;
+  background: linear-gradient(135deg, rgba(30,58,138,0.97) 0%, rgba(15,23,42,0.97) 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.13);
+  padding: 28px;
+  width: 100%;
+  max-width: 860px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: fadeInUp 0.35s cubic-bezier(0.16,1,0.3,1);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+}
+
+.compare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.compare-title {
+  margin: 0 0 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.compare-subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.compare-close {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: var(--text-light);
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.compare-close:hover {
+  background: rgba(255,255,255,0.15);
+  transform: scale(1.08);
+}
+
+.compare-search-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.compare-city-input {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.07);
+  color: var(--text-light);
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.compare-city-input:focus {
+  border-color: rgba(110,231,183,0.4);
+}
+
+.compare-city-input::placeholder { color: rgba(255,255,255,0.4); }
+
+.compare-add-btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: var(--accent);
+  color: #032;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+
+.compare-add-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 14px rgba(110,231,183,0.35);
+}
+
+.compare-add-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.compare-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 40px 0;
+}
+
+.compare-card {
+  background: linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 18px;
+  position: relative;
+  animation: fadeInUp 0.3s ease-out both;
+  transition: box-shadow 0.3s;
+}
+
+.compare-card:hover {
+  box-shadow: 0 8px 28px rgba(110,231,183,0.1);
+}
+
+.compare-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.compare-card-city {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.compare-card-country {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.compare-card-emoji {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.compare-card-temp {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.compare-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  text-transform: capitalize;
+}
+
+.compare-card-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.compare-stat {
+  background: rgba(255,255,255,0.05);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-size: 11px;
+}
+
+.compare-stat-label {
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.compare-stat-value {
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.compare-card-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255,255,255,0.08);
+  border: none;
+  color: var(--text-muted);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 22px;
+  text-align: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.compare-card-remove:hover {
+  background: rgba(239,68,68,0.2);
+  color: #fca5a5;
+}
+
+.compare-card-loading {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 30px 0;
+  animation: pulse 1.5s infinite;
+}
+
+.compare-mood-strip {
+  display: flex;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  align-items: center;
+}
+
+.compare-mood-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.compare-mood-vibe {
+  font-size: 10px;
+  color: var(--accent);
+  margin-left: 4px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   FEEL LIKE CHART LEGEND
+   ============================================================ */
+
+.feellike-legend {
+  display: flex;
+  gap: 18px;
+  justify-content: center;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#panel-feellike {
+  flex-direction: column;
+}
+
+#panel-feellike .summary-chart {
+  flex: 1;
 }
