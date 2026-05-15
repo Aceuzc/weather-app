@@ -1420,14 +1420,21 @@ body {
 
   .forecast-section, .summary-section {
     height: auto;
-    min-height: 220px;
+    min-height: 0;
   }
 
   .bottom-section {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 14px;
     flex: none;
     min-height: auto;
+  }
+
+  .forecast,
+  .summary-content,
+  .summary-panel {
+    height: auto;
+    min-height: 0;
   }
 
   .forecast {
@@ -1440,6 +1447,13 @@ body {
 
 /* ── Tablet portrait (600 – 767px) ── */
 @media (max-width: 767px) {
+  .app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .sidebar {
     width: 60px;
     padding: 10px 0;
@@ -1450,7 +1464,11 @@ body {
   .nav-menu   { gap: 18px; }
   .nav-icon   { width: 42px; height: 42px; font-size: 20px; border-radius: 10px; }
 
-  .main-content { padding: 12px 14px 24px; }
+  .main-content {
+    height: auto;
+    overflow: visible;
+    padding: 12px 14px 24px;
+  }
 
   .section,
   .weather-card,
@@ -1486,8 +1504,9 @@ body {
 
   .forecast-section,
   .summary-section {
-    height: auto;
+    height: auto !important;
     min-height: 0;
+    max-height: none;
   }
 
   .forecast,
@@ -1496,16 +1515,20 @@ body {
     flex: none;
     height: auto;
     min-height: 0;
+    max-height: none;
     overflow: visible;
   }
 
   .summary-panel.active {
+    display: block;
     min-height: 0;
   }
 
   .summary-chart {
-    flex: none;
-    min-height: 190px;
+    flex: none !important;
+    height: 220px;
+    min-height: 220px;
+    max-height: none;
   }
 
   /* Horizontal-scroll tabs */
@@ -1526,7 +1549,12 @@ body {
 
   .weather-stats { grid-template-columns: 1fr 1fr; gap: 8px; }
 
-  .forecast { grid-template-columns: repeat(auto-fit, minmax(68px, 1fr)); gap: 6px; }
+  .forecast {
+    flex: none;
+    grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
 
   .sun-container, .moon-orb { right: 24px; }
 
@@ -1636,7 +1664,12 @@ body {
 
   /* Card sizing */
   .weather-card, .map-card, .cities-card { padding: 14px; min-height: auto; }
-  .forecast-section, .summary-section { padding: 12px; min-height: 0; }
+  .forecast-section, .summary-section {
+    padding: 12px;
+    height: auto !important;
+    min-height: 0;
+    max-height: none;
+  }
 
   /* Current weather */
   .weather-card-header h3, .map-card h3, .cities-card h3 { font-size: 11px; }
@@ -1657,7 +1690,11 @@ body {
   .mood-vibe-text { font-size: 9px; }
 
   /* Forecast */
-  .forecast { grid-template-columns: repeat(auto-fit, minmax(62px, 1fr)); gap: 6px; }
+  .forecast {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
   .forecast-item { padding: 8px 6px; }
   .forecast-item .icon    { font-size: 22px; }
   .forecast-item .ftemp   { font-size: 13px; }
@@ -1682,6 +1719,22 @@ body {
   /* AI Summary */
   .ai-summary { padding: 10px 12px; margin-bottom: 8px; }
   .ai-summary-text { font-size: 11px; }
+
+  .summary-content,
+  .summary-panel {
+    display: block;
+    height: auto !important;
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .summary-panel:not(.active) { display: none; }
+
+  .summary-chart {
+    height: 210px;
+    min-height: 210px;
+  }
 
   /* Hourly */
   .hourly-item { padding: 8px 10px; gap: 6px; }
@@ -1772,7 +1825,11 @@ body {
   .temp { font-size: 36px; }
   .weather-icon-large { font-size: 38px; }
   .weather-stats { grid-template-columns: 1fr; }
-  .forecast { grid-template-columns: repeat(3, 1fr); }
+  .forecast { grid-template-columns: 1fr 1fr; }
+  .summary-chart {
+    height: 190px;
+    min-height: 190px;
+  }
   .details-grid { grid-template-columns: 1fr; }
   .hourly-item {
     display: grid;
