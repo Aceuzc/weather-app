@@ -5,7 +5,7 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   <meta name="color-scheme" content="dark">
-  <title>Weather Dashboard</title>
+  <title>Weather App</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,18 +13,6 @@
   <div id="weather-bg" class="weather-bg"></div>
 
   <div class="app">
-    <!-- Compact Icon Sidebar -->
-    <nav class="sidebar">
-      <div class="nav-logo">☁️</div>
-      <ul class="nav-menu">
-        <li><a href="#" class="nav-icon active" title="Dashboard">📊</a></li>
-        <li><a href="#" class="nav-icon" title="Analytics">📈</a></li>
-        <li><a href="#" class="nav-icon" title="Alerts">🔔</a></li>
-        <li><a href="#" class="nav-icon" title="Settings">⚙️</a></li>
-        <li><a href="#" class="nav-icon" title="Help">❓</a></li>
-      </ul>
-    </nav>
-
     <!-- Main Content -->
     <main class="main-content">
       <!-- Top Search Bar -->
@@ -32,9 +20,20 @@
         <form id="search-form" class="search-bar">
           <input id="city-input" type="search" placeholder="Search for location" aria-label="Search">
           <button type="submit">Search</button>
-          <button type="button" id="geo-btn" title="Use my location" class="geo-btn">📍</button>
+          <button type="button" id="geo-btn" title="Use my location" class="geo-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+              <circle cx="12" cy="12" r="8" stroke-opacity="0.35"/>
+            </svg>
+          </button>
         </form>
-        <button id="compare-btn" class="compare-open-btn" title="Compare cities">⚖️ Compare</button>
+        <button id="compare-btn" class="compare-open-btn" title="Compare cities">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4M2 12h8M14 12h8"/>
+          </svg>
+          Compare
+        </button>
         <div class="day-display" id="day-display">Tuesday</div>
       </div>
 
@@ -93,7 +92,7 @@
           <div class="cities-card">
             <div class="cities-header">
               <h3>Popular Cities</h3>
-              <a href="#" class="view-more">View more →</a>
+              <button id="view-more-btn" class="view-more">View more →</button>
             </div>
             <div class="cities-list" id="cities-list">
               <div class="city-item">
@@ -180,6 +179,25 @@
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- More Cities Modal -->
+  <div id="cities-modal" class="cities-modal" style="display:none">
+    <div class="cities-modal-overlay" id="cities-modal-overlay"></div>
+    <div class="cities-modal-dialog floating-card">
+      <div class="cities-modal-header">
+        <div>
+          <h2 class="cities-modal-title">🇵🇭 Philippine Cities</h2>
+          <p class="cities-modal-subtitle">Live weather across the Philippines — click any city to load it</p>
+        </div>
+        <button id="cities-modal-close" class="compare-close">✕</button>
+      </div>
+      <div class="cities-modal-search-row">
+        <input id="cities-modal-search" type="text" class="compare-city-input" placeholder="Filter cities…" autocomplete="off">
+        <div id="cities-modal-count" class="cities-modal-count"></div>
+      </div>
+      <div id="cities-modal-regions" class="cities-modal-regions"></div>
+    </div>
   </div>
 
   <!-- City Comparison Modal -->

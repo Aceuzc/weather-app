@@ -166,7 +166,6 @@ async function generateAISummary(cur, list){
 	}
 
 
-// sourcery skip: avoid-function-declarations-in-blocks
     function generateFallbackSummary(cur){
 	    return `${cur.name} is currently ${Math.round(cur.main.temp)}°C with ${cur.weather[0].description}. Stay hydrated and prepare for changing conditions today.`;
     }
@@ -498,14 +497,18 @@ function renderSummaryChart(list){
 
 	const ctx = canvas.getContext('2d');
 	const dpr = window.devicePixelRatio || 1;
-	const rect = container.getBoundingClientRect();
-	if(rect.width === 0 || rect.height === 0) return;
 
-	canvas.width = rect.width * dpr;
-	canvas.height = rect.height * dpr;
+	// Reset to 0 BEFORE measuring so the canvas never inflates the container rect
+	canvas.width = 0;
+	canvas.height = 0;
+
+	const W = container.offsetWidth;
+	const H = container.offsetHeight;
+	if(W === 0 || H === 0) return;
+
+	canvas.width = W * dpr;
+	canvas.height = H * dpr;
 	ctx.scale(dpr, dpr);
-	const W = rect.width;
-	const H = rect.height;
 
 	ctx.clearRect(0, 0, W, H);
 
@@ -663,57 +666,15 @@ window.addEventListener('resize', () => {
 	}
 });
 
-// ===== NAVBAR BUTTONS =====
-document.querySelectorAll('.nav-icon').forEach(icon => {
-	icon.addEventListener('click', (e) => {
-		e.preventDefault();
-		
-		// Switch active state
-		document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
-		icon.classList.add('active');
-		
-		const title = icon.getAttribute('title');
-		
-		// Handle each nav action
-		switch(title){
-			case 'Dashboard':
-				// Scroll to top / default view
-				window.scrollTo({top: 0, behavior: 'smooth'});
-				break;
-			case 'Analytics':
-				// Switch summary to chart view
-				document.querySelectorAll('#summary-tabs .tab-btn').forEach(b => b.classList.remove('active'));
-				document.querySelector('#summary-tabs .tab-btn[data-view="summary"]').classList.add('active');
-				switchSummaryPanel('summary');
-				break;
-			case 'Alerts':
-				// Show a notification-style feedback
-				showNavToast('🔔 No weather alerts for your area');
-				break;
-			case 'Settings':
-				showNavToast('⚙️ Settings coming soon');
-				break;
-			case 'Help':
-				showNavToast('❓ Search any city to see live weather');
-				break;
-		}
-	});
-});
-
-// Simple toast notification for nav actions
+// Toast notification utility (used by modals, share, city load)
 function showNavToast(message){
-	// Remove any existing toast
 	const existing = document.querySelector('.nav-toast');
 	if(existing) existing.remove();
-	
 	const toast = document.createElement('div');
 	toast.className = 'nav-toast';
 	toast.textContent = message;
 	document.body.appendChild(toast);
-	
-	// Trigger animation
 	requestAnimationFrame(() => toast.classList.add('show'));
-	
 	setTimeout(() => {
 		toast.classList.remove('show');
 		setTimeout(() => toast.remove(), 400);
@@ -886,7 +847,7 @@ const MOOD_PALETTES = {
 
 function getMoodPalette(weatherData) {
 	const cond = weatherData.weather[0].main.toLowerCase();
-	const { temp } = weatherData.main;
+	const temp = weatherData.main.temp;
 	if (isNightTime(weatherData))        return MOOD_PALETTES.night;
 	if (cond.includes('thunder') || cond.includes('storm')) return MOOD_PALETTES.storm;
 	if (cond.includes('rain'))            return MOOD_PALETTES.rain;
@@ -917,9 +878,9 @@ function renderMoodBoard(weatherData) {
 // ============================================================
 
 function getOutfitSuggestion(weatherData) {
-	const {temp} = weatherData.main;
+	const temp    = weatherData.main.temp;
 	const feelsLike = weatherData.main.feels_like;
-	const {humidity} = weatherData.main;
+	const humidity  = weatherData.main.humidity;
 	const cond      = weatherData.weather[0].main.toLowerCase();
 
 	if (cond.includes('thunder') || cond.includes('storm')) {
@@ -1206,14 +1167,18 @@ function renderFeelLikeChart(list) {
 	const entries = list.slice(0, 8);
 	const ctx = canvas.getContext('2d');
 	const dpr = window.devicePixelRatio || 1;
-	const rect = container.getBoundingClientRect();
-	if (rect.width === 0 || rect.height === 0) return;
 
-	canvas.width = rect.width * dpr;
-	canvas.height = rect.height * dpr;
+	// Reset to 0 BEFORE measuring so the canvas never inflates the container rect
+	canvas.width = 0;
+	canvas.height = 0;
+
+	const W = container.offsetWidth;
+	const H = container.offsetHeight;
+	if (W === 0 || H === 0) return;
+
+	canvas.width = W * dpr;
+	canvas.height = H * dpr;
 	ctx.scale(dpr, dpr);
-	const W = rect.width;
-	const H = rect.height;
 	ctx.clearRect(0, 0, W, H);
 
 	if (entries.length === 0) return;
@@ -1340,10 +1305,10 @@ function generatePlainAlerts(weatherData, forecastList) {
 	const alerts = [];
 	const cond     = weatherData.weather[0].main.toLowerCase();
 	const desc     = weatherData.weather[0].description.toLowerCase();
-	const {temp} = weatherData.main;
+	const temp     = weatherData.main.temp;
 	const feelsLk  = weatherData.main.feels_like;
 	const wind     = weatherData.wind.speed;
-	const {humidity} = weatherData.main;
+	const humidity = weatherData.main.humidity;
 	const vis      = weatherData.visibility / 1000;
 
 	// Storm / Thunderstorm
@@ -1714,3 +1679,185 @@ window.addEventListener('resize', () => {
 
 // Load a default city on startup
 getWeatherByCity('Manila');
+
+// ============================================================
+//  MORE CITIES MODAL
+// ============================================================
+
+const CITIES_BY_REGION = {
+  '🏙️ Metro Manila': [
+    'Manila','Quezon City','Makati','Taguig','Pasig',
+    'Mandaluyong','Marikina','Parañaque','Las Piñas','Muntinlupa',
+    'Caloocan','Malabon','Navotas','Valenzuela','Pasay','Pateros'
+  ],
+  '🌄 Luzon': [
+    'Baguio','San Fernando','Angeles','Olongapo','Dagupan',
+    'Laoag','Vigan','Tuguegarao','Ilagan','Cabanatuan',
+    'Malolos','Meycauayan','San Jose del Monte','Lucena','Batangas',
+    'Lipa','Taal','Cavite','Tagaytay','Antipolo',
+    'Naga','Legazpi','Sorsogon','Masbate','Romblon'
+  ],
+  '🏝️ Visayas': [
+    'Cebu','Mandaue','Lapu-Lapu','Talisay','Danao',
+    'Iloilo','Bacolod','Dumaguete','Tagbilaran','Tacloban',
+    'Ormoc','Borongan','Maasin','Catbalogan','Calbayog',
+    'Roxas','Kalibo','San Jose','Calapan','Puerto Princesa'
+  ],
+  '🌿 Mindanao': [
+    'Davao','Cagayan de Oro','Zamboanga','General Santos','Butuan',
+    'Iligan','Cotabato','Pagadian','Dipolog','Dapitan',
+    'Surigao','Bislig','Malaybalay','Marawi','Ozamiz',
+    'Valencia','Koronadal','Kidapawan','Mati','Panabo'
+  ]
+};
+
+// Cache so we don't refetch on reopen
+const citiesWeatherCache = {};
+let citiesModalOpen = false;
+
+const citiesModal        = document.getElementById('cities-modal');
+const citiesModalOverlay = document.getElementById('cities-modal-overlay');
+const citiesModalClose   = document.getElementById('cities-modal-close');
+const citiesModalSearch  = document.getElementById('cities-modal-search');
+const citiesModalRegions = document.getElementById('cities-modal-regions');
+const citiesModalCount   = document.getElementById('cities-modal-count');
+
+document.getElementById('view-more-btn')?.addEventListener('click', openCitiesModal);
+citiesModalOverlay?.addEventListener('click', closeCitiesModal);
+citiesModalClose?.addEventListener('click', closeCitiesModal);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && citiesModalOpen) closeCitiesModal();
+});
+
+citiesModalSearch?.addEventListener('input', () => {
+  filterCitiesModal(citiesModalSearch.value.trim().toLowerCase());
+});
+
+function openCitiesModal() {
+  citiesModal.style.display = 'flex';
+  citiesModalOpen = true;
+  document.body.style.overflow = 'hidden';
+  citiesModalSearch.value = '';
+  buildCitiesModalDOM();
+  citiesModalSearch.focus();
+}
+
+function closeCitiesModal() {
+  citiesModal.style.display = 'none';
+  citiesModalOpen = false;
+  document.body.style.overflow = '';
+}
+
+function buildCitiesModalDOM() {
+  citiesModalRegions.innerHTML = '';
+
+  const allCities = Object.values(CITIES_BY_REGION).flat();
+  citiesModalCount.textContent = `${allCities.length} cities`;
+
+  Object.entries(CITIES_BY_REGION).forEach(([region, cities]) => {
+    const block = document.createElement('div');
+    block.className = 'cities-region-block';
+    block.dataset.region = region;
+
+    block.innerHTML = `<div class="cities-region-label">${region}</div>`;
+
+    const grid = document.createElement('div');
+    grid.className = 'cities-modal-grid';
+
+    cities.forEach(city => {
+      const btn = document.createElement('button');
+      btn.className = 'cities-modal-item';
+      btn.dataset.city = city.toLowerCase();
+
+      const cached = citiesWeatherCache[city];
+      if (cached) {
+        btn.innerHTML = buildCityCardHTML(cached);
+      } else {
+        btn.innerHTML = `
+          <span class="city-modal-emoji">🌐</span>
+          <div class="city-modal-info">
+            <div class="city-modal-name">${city}</div>
+            <div class="city-modal-meta">Loading…</div>
+          </div>
+          <span class="city-modal-temp loading-temp">…</span>
+        `;
+        fetchCityWeather(city, btn);
+      }
+
+      btn.addEventListener('click', () => {
+        elements.cityInput.value = city;
+        getWeatherByCity(city);
+        closeCitiesModal();
+        showNavToast(`📍 Loading ${city}…`);
+      });
+
+      grid.appendChild(btn);
+    });
+
+    block.appendChild(grid);
+    citiesModalRegions.appendChild(block);
+  });
+}
+
+function buildCityCardHTML(data) {
+  const emoji = getWeatherEmoji(data.weather[0].main);
+  const temp  = Math.round(data.main.temp);
+  const desc  = data.weather[0].description.replace(/\b\w/g, c => c.toUpperCase());
+  return `
+    <span class="city-modal-emoji">${emoji}</span>
+    <div class="city-modal-info">
+      <div class="city-modal-name">${data.name}</div>
+      <div class="city-modal-meta">${desc}</div>
+    </div>
+    <span class="city-modal-temp">${temp}°C</span>
+  `;
+}
+
+async function fetchCityWeather(city, btnEl) {
+  try {
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
+    const data = await fetchJSON(url);
+    citiesWeatherCache[city] = data;
+    // Update the button if still in the DOM
+    if (btnEl && btnEl.isConnected) {
+      btnEl.innerHTML = buildCityCardHTML(data);
+    }
+  } catch {
+    if (btnEl && btnEl.isConnected) {
+      btnEl.querySelector('.city-modal-meta').textContent = 'Unavailable';
+      btnEl.querySelector('.city-modal-temp').textContent = '--';
+      btnEl.querySelector('.city-modal-temp').classList.remove('loading-temp');
+    }
+  }
+}
+
+function filterCitiesModal(query) {
+  let visibleTotal = 0;
+
+  document.querySelectorAll('.cities-region-block').forEach(block => {
+    let visibleInBlock = 0;
+    block.querySelectorAll('.cities-modal-item').forEach(btn => {
+      const name = btn.dataset.city || '';
+      const match = !query || name.includes(query);
+      btn.classList.toggle('hidden', !match);
+      if (match) visibleInBlock++;
+    });
+    block.style.display = visibleInBlock === 0 ? 'none' : 'flex';
+    visibleTotal += visibleInBlock;
+  });
+
+  citiesModalCount.textContent = `${visibleTotal} ${query ? 'results' : 'cities'}`;
+
+  // Show "no results" message
+  let noResults = citiesModalRegions.querySelector('.cities-modal-no-results');
+  if (visibleTotal === 0) {
+    if (!noResults) {
+      noResults = document.createElement('div');
+      noResults.className = 'cities-modal-no-results';
+      citiesModalRegions.appendChild(noResults);
+    }
+    noResults.textContent = `No cities match "${query}"`;
+  } else if (noResults) {
+    noResults.remove();
+  }
+}
