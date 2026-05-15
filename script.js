@@ -1302,6 +1302,8 @@ function renderFeelLikeChart(list) {
 // ============================================================
 
 function generatePlainAlerts(weatherData, forecastList) {
+	return;
+
 	const alerts = [];
 	const cond     = weatherData.weather[0].main.toLowerCase();
 	const desc     = weatherData.weather[0].description.toLowerCase();
@@ -1421,6 +1423,8 @@ function generatePlainAlerts(weatherData, forecastList) {
 }
 
 function renderAlertsBanner(alerts) {
+	return;
+
 	const banner = document.getElementById('alerts-banner');
 	if (!banner) return;
 
@@ -1471,7 +1475,6 @@ async function getWeatherByCity(city) {
 		renderFeelLikeChart(f.list);
 		updateMap(cur.coord.lat, cur.coord.lon);
 		generateAISummary(cur, f.list);
-		generatePlainAlerts(cur, f.list);
 		updatePopularCities();
 	} catch (err) {
 		alert('Error: ' + err.message);
@@ -1504,7 +1507,6 @@ async function getWeatherByCoords(lat, lon) {
 		renderFeelLikeChart(f.list);
 		updateMap(lat, lon);
 		generateAISummary(cur, f.list);
-		generatePlainAlerts(cur, f.list);
 		updatePopularCities();
 	} catch (err) {
 		alert('Error: ' + err.message);
