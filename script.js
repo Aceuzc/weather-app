@@ -843,14 +843,52 @@ elements.geoBtn.addEventListener('click', () => {
 
 // Handle chart resize
 window.addEventListener('resize', () => {
-	if (hourlyData.length === 0) return;
-	const summaryPanel = document.getElementById('panel-summary');
-	if (summaryPanel?.classList.contains('active')) renderSummaryChart(forecastList);
-	const feelPanel = document.getElementById('panel-feellike');
-	if (feelPanel?.classList.contains('active')) renderFeelLikeChart(forecastList);
+	if(hourlyData.length > 0){
+		const summaryPanel = document.getElementById('panel-summary');
+		if(summaryPanel && summaryPanel.classList.contains('active')){
+			renderSummaryChart(forecastList);
+		}
+	}
 });
 
-// Toast notification utility (used by modals, share, city load)
+// ===== NAVBAR BUTTONS =====
+document.querySelectorAll('.nav-icon').forEach(icon => {
+	icon.addEventListener('click', (e) => {
+		e.preventDefault();
+		
+		// Switch active state
+		document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
+		icon.classList.add('active');
+		
+		const title = icon.getAttribute('title');
+		
+		// Handle each nav action
+		switch(title){
+			case 'Dashboard':
+				// Scroll to top / default view
+				window.scrollTo({top: 0, behavior: 'smooth'});
+				break;
+			case 'Analytics':
+				// Switch summary to chart view
+				document.querySelectorAll('#summary-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+				document.querySelector('#summary-tabs .tab-btn[data-view="summary"]').classList.add('active');
+				switchSummaryPanel('summary');
+				break;
+			case 'Alerts':
+				// Show a notification-style feedback
+				showNavToast('🔔 No weather alerts for your area');
+				break;
+			case 'Settings':
+				showNavToast('⚙️ Settings coming soon');
+				break;
+			case 'Help':
+				showNavToast('❓ Search any city to see live weather');
+				break;
+		}
+	});
+});
+
+// Simple toast notification for nav actions
 function showNavToast(message){
 	const existing = document.querySelector('.nav-toast');
 	if(existing) existing.remove();
@@ -1322,6 +1360,546 @@ function shareWeatherCard() {
 
 // Share button listener
 document.getElementById('share-btn')?.addEventListener('click', shareWeatherCard);
+
+// ============================================================
+//  FEATURE 5: FEEL LIKE TIMELINE CHART
+// ============================================================
+
+function renderFeelLikeChart(list) {
+	const panel = document.getElementById('panel-feellike');
+	if (!panel) return;
+
+	// Inject legend if not already there
+	if (!document.getElementById('feellike-legend')) {
+		const legend = document.createElement('div');
+		legend.id = 'feellike-legend';
+		legend.className = 'feellike-legend';
+		legend.innerHTML = `
+			<div class="legend-item"><div class="legend-dot" style="background:#6ee7b7"></div> Actual Temp</div>
+			<div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> Feels Like</div>
+			<div class="legend-item"><div class="legend-dot" style="background:#60a5fa;border-radius:2px;height:3px;margin-top:4px;"></div> Humidity %</div>
+		`;
+		panel.insertBefore(legend, panel.firstChild);
+	}
+
+	const canvas = document.getElementById('feellike-canvas');
+	const container = document.getElementById('feellike-chart');
+	if (!canvas || !container) return;
+
+	const entries = list.slice(0, 8);
+	const ctx = canvas.getContext('2d');
+	const dpr = window.devicePixelRatio || 1;
+
+	// Reset to 0 BEFORE measuring so the canvas never inflates the container rect
+	canvas.width = 0;
+	canvas.height = 0;
+
+	const W = container.offsetWidth;
+	const H = container.offsetHeight;
+	if (W === 0 || H === 0) return;
+
+	canvas.width = W * dpr;
+	canvas.height = H * dpr;
+	ctx.scale(dpr, dpr);
+	ctx.clearRect(0, 0, W, H);
+
+	if (entries.length === 0) return;
+
+	const temps     = entries.map(e => e.main.temp);
+	const feelsLike = entries.map(e => e.main.feels_like);
+	const humidity  = entries.map(e => e.main.humidity);
+	const labels    = entries.map(e => formatTime(e.dt));
+
+	const allTemps = [...temps, ...feelsLike];
+	const minT = Math.min(...allTemps) - 3;
+	const maxT = Math.max(...allTemps) + 3;
+
+	const padL = 50, padR = 52, padT = 28, padB = 38;
+	const plotW = W - padL - padR;
+	const plotH = H - padT - padB;
+
+	function xPos(i) { return padL + (i / (entries.length - 1)) * plotW; }
+	function yPos(t) { return padT + (1 - (t - minT) / (maxT - minT)) * plotH; }
+
+	// Grid lines
+	ctx.strokeStyle = 'rgba(255,255,255,0.07)';
+	ctx.lineWidth = 1;
+	for (let i = 0; i <= 4; i++) {
+		const t = minT + (maxT - minT) * (i / 4);
+		const y = yPos(t);
+		ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+		ctx.fillStyle = 'rgba(255,255,255,0.45)';
+		ctx.font = '10px Inter, sans-serif';
+		ctx.textAlign = 'right';
+		ctx.fillText(`${Math.round(t)}°`, padL - 6, y + 4);
+	}
+
+	// Humidity bars (background, right axis)
+	const barW = Math.max(6, plotW / entries.length - 4);
+	humidity.forEach((h, i) => {
+		const barH = (h / 100) * plotH;
+		const x = xPos(i) - barW / 2;
+		const y = padT + plotH - barH;
+		ctx.fillStyle = 'rgba(96,165,250,0.13)';
+		ctx.beginPath();
+		ctx.roundRect(x, y, barW, barH, 3);
+		ctx.fill();
+	});
+	// Humidity axis labels (right)
+	ctx.fillStyle = 'rgba(96,165,250,0.55)';
+	ctx.font = '9px Inter, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('100%', W - padR + 5, padT + 4);
+	ctx.fillText('0%',   W - padR + 5, padT + plotH + 4);
+
+	// Helper to draw a smooth line with gradient fill
+	function drawLine(dataArr, color, fillColor) {
+		const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+		grad.addColorStop(0, fillColor + '44');
+		grad.addColorStop(1, fillColor + '05');
+
+		ctx.beginPath();
+		ctx.moveTo(xPos(0), yPos(dataArr[0]));
+		for (let i = 1; i < dataArr.length; i++) {
+			const cx = (xPos(i-1) + xPos(i)) / 2;
+			ctx.bezierCurveTo(cx, yPos(dataArr[i-1]), cx, yPos(dataArr[i]), xPos(i), yPos(dataArr[i]));
+		}
+		ctx.lineTo(xPos(dataArr.length - 1), H - padB);
+		ctx.lineTo(xPos(0), H - padB);
+		ctx.closePath();
+		ctx.fillStyle = grad;
+		ctx.fill();
+
+		ctx.beginPath();
+		ctx.moveTo(xPos(0), yPos(dataArr[0]));
+		for (let i = 1; i < dataArr.length; i++) {
+			const cx = (xPos(i-1) + xPos(i)) / 2;
+			ctx.bezierCurveTo(cx, yPos(dataArr[i-1]), cx, yPos(dataArr[i]), xPos(i), yPos(dataArr[i]));
+		}
+		ctx.strokeStyle = color;
+		ctx.lineWidth = 2.5;
+		ctx.stroke();
+
+		dataArr.forEach((t, i) => {
+			ctx.beginPath();
+			ctx.arc(xPos(i), yPos(t), 4, 0, Math.PI * 2);
+			ctx.fillStyle = color;
+			ctx.fill();
+			ctx.strokeStyle = '#0f172a';
+			ctx.lineWidth = 2;
+			ctx.stroke();
+		});
+	}
+
+	drawLine(feelsLike, '#f97316', '#f97316');
+	drawLine(temps,     '#6ee7b7', '#6ee7b7');
+
+	// Delta annotation between the two lines
+	entries.forEach((e, i) => {
+		const diff = Math.round(feelsLike[i] - temps[i]);
+		if (diff !== 0) {
+			const midY = (yPos(temps[i]) + yPos(feelsLike[i])) / 2;
+			ctx.fillStyle = diff > 0 ? 'rgba(249,115,22,0.7)' : 'rgba(96,165,250,0.7)';
+			ctx.font = 'bold 9px Inter, sans-serif';
+			ctx.textAlign = 'center';
+			ctx.fillText(`${diff > 0 ? '+' : ''}${diff}°`, xPos(i) + 10, midY);
+		}
+	});
+
+	// X-axis labels
+	ctx.fillStyle = 'rgba(255,255,255,0.45)';
+	ctx.font = '10px Inter, sans-serif';
+	ctx.textAlign = 'center';
+	labels.forEach((lbl, i) => ctx.fillText(lbl, xPos(i), H - padB + 16));
+
+	// Chart title
+	ctx.fillStyle = 'rgba(255,255,255,0.35)';
+	ctx.font = '11px Inter, sans-serif';
+	ctx.textAlign = 'left';
+	ctx.fillText('Actual vs Feels Like · next 24h', padL, padT - 10);
+}
+
+// ============================================================
+//  FEATURE 7: WEATHER ALERTS IN PLAIN LANGUAGE
+// ============================================================
+
+function generatePlainAlerts(weatherData, forecastList) {
+	return;
+
+	const alerts = [];
+	const cond     = weatherData.weather[0].main.toLowerCase();
+	const desc     = weatherData.weather[0].description.toLowerCase();
+	const temp     = weatherData.main.temp;
+	const feelsLk  = weatherData.main.feels_like;
+	const wind     = weatherData.wind.speed;
+	const humidity = weatherData.main.humidity;
+	const vis      = weatherData.visibility / 1000;
+
+	// Storm / Thunderstorm
+	if (cond.includes('thunder') || cond.includes('storm')) {
+		alerts.push({
+			severity: 'danger',
+			icon: '⛈️',
+			title: 'Thunderstorm Warning',
+			text: 'Active thunderstorm in your area — avoid open spaces and stay away from trees. Dangerous for driving. Best to stay indoors until conditions improve.'
+		});
+	}
+
+	// Heavy rain
+	if (cond.includes('rain') && (desc.includes('heavy') || desc.includes('extreme'))) {
+		alerts.push({
+			severity: 'danger',
+			icon: '🌧️',
+			title: 'Heavy Rain Advisory',
+			text: 'Heavy rain expected — expect flooded streets and reduced visibility. Waterproof your bag, wear rubber shoes, and allow extra travel time.'
+		});
+	}
+
+	// Drizzle / light rain
+	if (cond.includes('drizzle') || (cond.includes('rain') && desc.includes('light'))) {
+		alerts.push({
+			severity: 'info',
+			icon: '☂️',
+			title: 'Light Rain — Bring an Umbrella',
+			text: 'Patchy drizzle throughout the day. Toss a foldable umbrella in your bag — it\'ll save you more than once today.'
+		});
+	}
+
+	// High wind
+	if (wind > 14) {
+		alerts.push({
+			severity: 'danger',
+			icon: '💨',
+			title: 'Strong Wind Warning',
+			text: `Winds at ${Math.round(wind)} m/s — secure loose items outside your house (plant pots, chairs, signage). Avoid parking under trees or old structures.`
+		});
+	} else if (wind > 9) {
+		alerts.push({
+			severity: 'warning',
+			icon: '🌬️',
+			title: 'Breezy Conditions',
+			text: `Wind gusts up to ${Math.round(wind)} m/s. Umbrella users beware — yours might flip inside out. Hold on to lightweight items.`
+		});
+	}
+
+	// Extreme heat
+	if (feelsLk >= 40) {
+		alerts.push({
+			severity: 'danger',
+			icon: '🥵',
+			title: 'Extreme Heat Advisory',
+			text: `Feels like ${Math.round(feelsLk)}°C outside — dangerous heat index. Avoid going out between 10AM–4PM. Drink water every 20 minutes even if you're not thirsty.`
+		});
+	} else if (feelsLk >= 35) {
+		alerts.push({
+			severity: 'warning',
+			icon: '☀️',
+			title: 'Hot Day Ahead',
+			text: `Feels like ${Math.round(feelsLk)}°C — wear light breathable clothing, apply sunscreen SPF 30+, and stay hydrated. Limit outdoor activity during midday.`
+		});
+	}
+
+	// High humidity (without rain)
+	if (humidity >= 88 && !cond.includes('rain') && !cond.includes('storm')) {
+		alerts.push({
+			severity: 'warning',
+			icon: '💦',
+			title: 'High Humidity Alert',
+			text: `Humidity at ${humidity}% — even mild activity will feel exhausting. Wear moisture-wicking fabrics and take breaks in air-conditioned spaces.`
+		});
+	}
+
+	// Low visibility
+	if (vis < 1) {
+		alerts.push({
+			severity: 'danger',
+			icon: '🌫️',
+			title: 'Very Low Visibility',
+			text: `Visibility is only ${vis.toFixed(1)} km — extremely hazardous for driving. Turn on fog lights and slow down significantly. Avoid highways if possible.`
+		});
+	} else if (vis < 3) {
+		alerts.push({
+			severity: 'warning',
+			icon: '👁️',
+			title: 'Reduced Visibility',
+			text: `Visibility around ${vis.toFixed(1)} km due to ${desc}. Drive carefully, keep extra distance from the vehicle ahead, and use headlights even in daytime.`
+		});
+	}
+
+	// Check forecast for upcoming rain in next 12h
+	if (!cond.includes('rain') && !cond.includes('storm') && forecastList.length > 0) {
+		const upcoming = forecastList.slice(0, 4);
+		const rainSoon = upcoming.find(item => item.weather[0].main.toLowerCase().includes('rain'));
+		if (rainSoon) {
+			const rainTime = formatTime(rainSoon.dt);
+			alerts.push({
+				severity: 'info',
+				icon: '🌦️',
+				title: 'Rain Expected Later',
+				text: `Currently dry but rain is forecast around ${rainTime}. Bring an umbrella if you\'re heading out — you\'ll thank yourself on the way back.`
+			});
+		}
+	}
+
+	renderAlertsBanner(alerts);
+}
+
+function renderAlertsBanner(alerts) {
+	return;
+
+	const banner = document.getElementById('alerts-banner');
+	if (!banner) return;
+
+	if (alerts.length === 0) {
+		banner.style.display = 'none';
+		banner.innerHTML = '';
+		return;
+	}
+
+	banner.style.display = 'flex';
+	banner.innerHTML = alerts.map((a, i) => `
+		<div class="alert-item severity-${a.severity}" style="animation-delay:${i * 0.07}s">
+			<span class="alert-icon">${a.icon}</span>
+			<div class="alert-body">
+				<div class="alert-title">${a.title}</div>
+				<div class="alert-text">${a.text}</div>
+			</div>
+			<button class="alert-dismiss" onclick="this.closest('.alert-item').remove(); if(!document.querySelector('.alert-item')) document.getElementById('alerts-banner').style.display='none';" title="Dismiss">✕</button>
+		</div>
+	`).join('');
+}
+
+// ============================================================
+//  FEATURE 6: LOCATION COMPARISON MODAL
+// ============================================================
+
+// Override getWeatherByCity to hook in new features
+async function getWeatherByCity(city) {
+	if (!API_KEY || API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY') {
+		const key = prompt('Enter your OpenWeatherMap API key');
+		if (!key) return alert('API key required');
+		API_KEY = key;
+	}
+	setLoading();
+	try {
+		const curUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
+		const cur = await fetchJSON(curUrl);
+		const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
+		const f = await fetchJSON(forecastUrl);
+		currentWeatherData = cur;
+		forecastList = f.list;
+		hourlyData = f.list.slice(0, 8);
+		renderCurrent(cur);
+		renderForecast7Days(f.list, activeForecastDays);
+		renderSummaryChart(f.list);
+		renderHourlyList(f.list);
+		renderMoreDetails(cur, f.list);
+		renderFeelLikeChart(f.list);
+		updateMap(cur.coord.lat, cur.coord.lon);
+		generateAISummary(cur, f.list);
+		updatePopularCities();
+	} catch (err) {
+		alert('Error: ' + err.message);
+		elements.temp.textContent = '--';
+		elements.desc.textContent = '--';
+		setAISummary('AI summary unavailable.', false);
+	}
+}
+
+async function getWeatherByCoords(lat, lon) {
+	if (!API_KEY || API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY') {
+		const key = prompt('Enter your OpenWeatherMap API key');
+		if (!key) return alert('API key required');
+		API_KEY = key;
+	}
+	setLoading();
+	try {
+		const curUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
+		const cur = await fetchJSON(curUrl);
+		const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
+		const f = await fetchJSON(forecastUrl);
+		currentWeatherData = cur;
+		forecastList = f.list;
+		hourlyData = f.list.slice(0, 8);
+		renderCurrent(cur);
+		renderForecast7Days(f.list, activeForecastDays);
+		renderSummaryChart(f.list);
+		renderHourlyList(f.list);
+		renderMoreDetails(cur, f.list);
+		renderFeelLikeChart(f.list);
+		updateMap(lat, lon);
+		generateAISummary(cur, f.list);
+		updatePopularCities();
+	} catch (err) {
+		alert('Error: ' + err.message);
+		setAISummary('AI summary unavailable.', false);
+	}
+}
+
+// Hook feel-like into summary tab switch
+function switchSummaryPanel(viewName) {
+	document.querySelectorAll('.summary-panel').forEach(p => p.classList.remove('active'));
+	const target = document.getElementById(`panel-${viewName}`);
+	if (target) target.classList.add('active');
+	if (viewName === 'summary' && hourlyData.length > 0) {
+		setTimeout(() => renderSummaryChart(forecastList), 50);
+	}
+	if (viewName === 'feellike' && forecastList.length > 0) {
+		setTimeout(() => renderFeelLikeChart(forecastList), 50);
+	}
+}
+
+// ============================================================
+//  FEATURE 6: LOCATION COMPARISON MODAL
+// ============================================================
+
+let pinnedCities = [];
+
+const compareModal   = document.getElementById('compare-modal');
+const compareOverlay = document.getElementById('compare-overlay');
+const compareClose   = document.getElementById('compare-close');
+const compareAddBtn  = document.getElementById('compare-add-btn');
+const compareCityInput = document.getElementById('compare-city-input');
+const compareGrid    = document.getElementById('compare-grid');
+
+document.getElementById('compare-btn')?.addEventListener('click', openCompareModal);
+compareOverlay?.addEventListener('click', closeCompareModal);
+compareClose?.addEventListener('click', closeCompareModal);
+compareAddBtn?.addEventListener('click', addCompareCity);
+compareCityInput?.addEventListener('keydown', e => { if (e.key === 'Enter') addCompareCity(); });
+
+function openCompareModal() {
+	compareModal.style.display = 'flex';
+	document.body.style.overflow = 'hidden';
+	compareCityInput.focus();
+	renderCompareGrid();
+}
+
+function closeCompareModal() {
+	compareModal.style.display = 'none';
+	document.body.style.overflow = '';
+}
+
+async function addCompareCity() {
+	const city = compareCityInput.value.trim();
+	if (!city) return;
+	if (pinnedCities.length >= 3) {
+		showNavToast('⚖️ Max 3 cities — remove one first');
+		return;
+	}
+	const already = pinnedCities.find(c => c.name?.toLowerCase() === city.toLowerCase());
+	if (already) { showNavToast('📍 City already pinned'); return; }
+
+	compareCityInput.value = '';
+	compareAddBtn.disabled = true;
+
+	// Add a loading placeholder card
+	const tempId = 'loading-' + Date.now();
+	const tempDiv = document.createElement('div');
+	tempDiv.className = 'compare-card';
+	tempDiv.id = tempId;
+	tempDiv.innerHTML = `<div class="compare-card-loading">Loading ${city}…</div>`;
+	if (compareGrid.querySelector('.compare-empty')) compareGrid.innerHTML = '';
+	compareGrid.appendChild(tempDiv);
+
+	try {
+		const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
+		const data = await fetchJSON(url);
+		pinnedCities.push(data);
+		document.getElementById(tempId)?.remove();
+		renderCompareGrid();
+	} catch (err) {
+		document.getElementById(tempId)?.remove();
+		showNavToast(`❌ "${city}" not found`);
+	} finally {
+		compareAddBtn.disabled = false;
+	}
+}
+
+function removeCompareCity(index) {
+	pinnedCities.splice(index, 1);
+	renderCompareGrid();
+}
+
+function renderCompareGrid() {
+	if (!compareGrid) return;
+	if (pinnedCities.length === 0) {
+		compareGrid.innerHTML = '<div class="compare-empty">Add cities above to start comparing</div>';
+		return;
+	}
+
+	// Find best/worst values for highlights
+	const highestTemp  = Math.max(...pinnedCities.map(c => c.main.temp));
+	const lowestTemp   = Math.min(...pinnedCities.map(c => c.main.temp));
+	const lowestWind   = Math.min(...pinnedCities.map(c => c.wind.speed));
+
+	compareGrid.innerHTML = '';
+	pinnedCities.forEach((data, i) => {
+		const palette = getMoodPalette(data);
+		const emoji   = getWeatherEmoji(data.weather[0].main);
+		const temp    = Math.round(data.main.temp);
+		const feels   = Math.round(data.main.feels_like);
+		const isBest  = data.main.temp === highestTemp && pinnedCities.length > 1;
+		const isCool  = data.main.temp === lowestTemp  && pinnedCities.length > 1;
+
+		const card = document.createElement('div');
+		card.className = 'compare-card';
+		card.style.animationDelay = `${i * 0.08}s`;
+
+		if (isBest) card.style.borderColor = 'rgba(249,115,22,0.35)';
+		if (isCool) card.style.borderColor = 'rgba(96,165,250,0.35)';
+
+		card.innerHTML = `
+			<button class="compare-card-remove" onclick="removeCompareCity(${i})" title="Remove">✕</button>
+			<div class="compare-card-top">
+				<div>
+					<div class="compare-card-city">${data.name}</div>
+					<div class="compare-card-country">${data.sys.country}</div>
+				</div>
+				<div class="compare-card-emoji">${emoji}</div>
+			</div>
+			<div class="compare-card-temp">${temp}°C</div>
+			<div class="compare-card-desc">${data.weather[0].description}</div>
+			<div class="compare-card-stats">
+				<div class="compare-stat">
+					<div class="compare-stat-label">🌡️ Feels Like</div>
+					<div class="compare-stat-value">${feels}°C</div>
+				</div>
+				<div class="compare-stat">
+					<div class="compare-stat-label">💧 Humidity</div>
+					<div class="compare-stat-value">${data.main.humidity}%</div>
+				</div>
+				<div class="compare-stat">
+					<div class="compare-stat-label">💨 Wind</div>
+					<div class="compare-stat-value">${Math.round(data.wind.speed)} m/s</div>
+				</div>
+				<div class="compare-stat">
+					<div class="compare-stat-label">👁️ Visibility</div>
+					<div class="compare-stat-value">${(data.visibility/1000).toFixed(1)} km</div>
+				</div>
+			</div>
+			<div class="compare-mood-strip">
+				${palette.swatches.map(c => `<div class="compare-mood-dot" style="background:${c}"></div>`).join('')}
+				<span class="compare-mood-vibe">${palette.vibe}</span>
+			</div>
+			${isBest ? '<div style="font-size:10px;color:#f97316;margin-top:8px;font-weight:700;">🔥 Hottest</div>' : ''}
+			${isCool ? '<div style="font-size:10px;color:#60a5fa;margin-top:8px;font-weight:700;">❄️ Coolest</div>' : ''}
+		`;
+		compareGrid.appendChild(card);
+	});
+}
+
+// ============================================================
+//  RESIZE HANDLER — include feel-like chart
+// ============================================================
+window.addEventListener('resize', () => {
+	if (hourlyData.length > 0) {
+		const summaryPanel = document.getElementById('panel-summary');
+		if (summaryPanel?.classList.contains('active')) renderSummaryChart(forecastList);
+		const feelPanel = document.getElementById('panel-feellike');
+		if (feelPanel?.classList.contains('active')) renderFeelLikeChart(forecastList);
+	}
+});
 
 // ============================================================
 //  FEATURE 5: FEEL LIKE TIMELINE CHART
@@ -1924,184 +2502,3 @@ document.getElementById('favorite-btn')?.addEventListener('click', () => {
 
 renderQuickAccess();
 getWeatherByCity('Manila');
-
-// ============================================================
-//  MORE CITIES MODAL
-// ============================================================
-
-const CITIES_BY_REGION = {
-  '🏙️ Metro Manila': [
-    'Manila','Quezon City','Makati','Taguig','Pasig',
-    'Mandaluyong','Marikina','Parañaque','Las Piñas','Muntinlupa',
-    'Caloocan','Malabon','Navotas','Valenzuela','Pasay','Pateros'
-  ],
-  '🌄 Luzon': [
-    'Baguio','San Fernando','Angeles','Olongapo','Dagupan',
-    'Laoag','Vigan','Tuguegarao','Ilagan','Cabanatuan',
-    'Malolos','Meycauayan','San Jose del Monte','Lucena','Batangas',
-    'Lipa','Taal','Cavite','Tagaytay','Antipolo',
-    'Naga','Legazpi','Sorsogon','Masbate','Romblon'
-  ],
-  '🏝️ Visayas': [
-    'Cebu','Mandaue','Lapu-Lapu','Talisay','Danao',
-    'Iloilo','Bacolod','Dumaguete','Tagbilaran','Tacloban',
-    'Ormoc','Borongan','Maasin','Catbalogan','Calbayog',
-    'Roxas','Kalibo','San Jose','Calapan','Puerto Princesa'
-  ],
-  '🌿 Mindanao': [
-    'Davao','Cagayan de Oro','Zamboanga','General Santos','Butuan',
-    'Iligan','Cotabato','Pagadian','Dipolog','Dapitan',
-    'Surigao','Bislig','Malaybalay','Marawi','Ozamiz',
-    'Valencia','Koronadal','Kidapawan','Mati','Panabo'
-  ]
-};
-
-// Cache so we don't refetch on reopen
-const citiesWeatherCache = {};
-let citiesModalOpen = false;
-
-const citiesModal        = document.getElementById('cities-modal');
-const citiesModalOverlay = document.getElementById('cities-modal-overlay');
-const citiesModalClose   = document.getElementById('cities-modal-close');
-const citiesModalSearch  = document.getElementById('cities-modal-search');
-const citiesModalRegions = document.getElementById('cities-modal-regions');
-const citiesModalCount   = document.getElementById('cities-modal-count');
-
-document.getElementById('view-more-btn')?.addEventListener('click', openCitiesModal);
-citiesModalOverlay?.addEventListener('click', closeCitiesModal);
-citiesModalClose?.addEventListener('click', closeCitiesModal);
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && citiesModalOpen) closeCitiesModal();
-});
-
-citiesModalSearch?.addEventListener('input', () => {
-  filterCitiesModal(citiesModalSearch.value.trim().toLowerCase());
-});
-
-function openCitiesModal() {
-  citiesModal.style.display = 'flex';
-  citiesModalOpen = true;
-  document.body.style.overflow = 'hidden';
-  citiesModalSearch.value = '';
-  buildCitiesModalDOM();
-  citiesModalSearch.focus();
-}
-
-function closeCitiesModal() {
-  citiesModal.style.display = 'none';
-  citiesModalOpen = false;
-  document.body.style.overflow = '';
-}
-
-function buildCitiesModalDOM() {
-  citiesModalRegions.innerHTML = '';
-
-  const allCities = Object.values(CITIES_BY_REGION).flat();
-  citiesModalCount.textContent = `${allCities.length} cities`;
-
-  Object.entries(CITIES_BY_REGION).forEach(([region, cities]) => {
-    const block = document.createElement('div');
-    block.className = 'cities-region-block';
-    block.dataset.region = region;
-
-    block.innerHTML = `<div class="cities-region-label">${region}</div>`;
-
-    const grid = document.createElement('div');
-    grid.className = 'cities-modal-grid';
-
-    cities.forEach(city => {
-      const btn = document.createElement('button');
-      btn.className = 'cities-modal-item';
-      btn.dataset.city = city.toLowerCase();
-      btn.dataset.cacheKey = city;
-
-      const cached = citiesWeatherCache[city];
-      if (cached) {
-        btn.innerHTML = buildCityCardHTML(cached);
-      } else {
-        btn.innerHTML = `
-          <span class="city-modal-emoji">🌐</span>
-          <div class="city-modal-info">
-            <div class="city-modal-name">${city}</div>
-            <div class="city-modal-meta">Loading…</div>
-          </div>
-          <span class="city-modal-temp loading-temp">…</span>
-        `;
-        fetchCityWeather(city, btn);
-      }
-
-      btn.addEventListener('click', () => {
-        elements.cityInput.value = city;
-        getWeatherByCity(`${city},PH`);
-        closeCitiesModal();
-      });
-
-      grid.appendChild(btn);
-    });
-
-    block.appendChild(grid);
-    citiesModalRegions.appendChild(block);
-  });
-}
-
-function buildCityCardHTML(data) {
-  const emoji = getWeatherEmoji(data.weather[0].main);
-  const temp  = formatTemp(data.main.temp);
-  const desc  = data.weather[0].description.replace(/\b\w/g, c => c.toUpperCase());
-  return `
-    <span class="city-modal-emoji">${emoji}</span>
-    <div class="city-modal-info">
-      <div class="city-modal-name">${data.name}</div>
-      <div class="city-modal-meta">${desc}</div>
-    </div>
-    <span class="city-modal-temp">${temp}</span>
-  `;
-}
-
-async function fetchCityWeather(city, btnEl) {
-  try {
-    const data = await fetchOWM('weather', { q: `${city},PH` });
-    citiesWeatherCache[city] = data;
-    // Update the button if still in the DOM
-    if (btnEl && btnEl.isConnected) {
-      btnEl.innerHTML = buildCityCardHTML(data);
-    }
-  } catch {
-    if (btnEl && btnEl.isConnected) {
-      btnEl.querySelector('.city-modal-meta').textContent = 'Unavailable';
-      btnEl.querySelector('.city-modal-temp').textContent = '--';
-      btnEl.querySelector('.city-modal-temp').classList.remove('loading-temp');
-    }
-  }
-}
-
-function filterCitiesModal(query) {
-  let visibleTotal = 0;
-
-  document.querySelectorAll('.cities-region-block').forEach(block => {
-    let visibleInBlock = 0;
-    block.querySelectorAll('.cities-modal-item').forEach(btn => {
-      const name = btn.dataset.city || '';
-      const match = !query || name.includes(query);
-      btn.classList.toggle('hidden', !match);
-      if (match) visibleInBlock++;
-    });
-    block.style.display = visibleInBlock === 0 ? 'none' : 'flex';
-    visibleTotal += visibleInBlock;
-  });
-
-  citiesModalCount.textContent = `${visibleTotal} ${query ? 'results' : 'cities'}`;
-
-  // Show "no results" message
-  let noResults = citiesModalRegions.querySelector('.cities-modal-no-results');
-  if (visibleTotal === 0) {
-    if (!noResults) {
-      noResults = document.createElement('div');
-      noResults.className = 'cities-modal-no-results';
-      citiesModalRegions.appendChild(noResults);
-    }
-    noResults.textContent = `No cities match "${query}"`;
-  } else if (noResults) {
-    noResults.remove();
-  }
-}
