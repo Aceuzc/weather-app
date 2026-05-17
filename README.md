@@ -31,7 +31,16 @@ A Philippines-focused weather dashboard built with **HTML, CSS, and vanilla Java
 
 ## Screenshots
 
-Add 2–3 screenshots to a `docs/` folder and link them here for your portfolio README.
+### Dashboard
+![Dashboard](docs/dashboard.png)
+
+### Compare Cities
+![Compare Cities](docs/compare.png)
+
+### Mobile View
+![Mobile View](docs/mobile.png)
+## Local development
+
 
 ## Local development
 
