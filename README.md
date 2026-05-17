@@ -4,9 +4,7 @@ A Philippines-focused weather dashboard built with **HTML, CSS, and vanilla Java
 
 ## Live demo
 
-Add your Vercel URL here after deploy, for example:
-
-`https://your-project.vercel.app`
+`(https://weather-app-mu-ten-10.vercel.app/)`
 
 ## Features
 
