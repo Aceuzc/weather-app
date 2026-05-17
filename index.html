@@ -21,7 +21,10 @@
       <!-- Top Search Bar -->
       <div class="top-bar">
         <form id="search-form" class="search-bar">
-          <input id="city-input" type="search" placeholder="Search for location" aria-label="Search">
+          <div class="search-autocomplete-wrap">
+            <input id="city-input" type="search" placeholder="Search Philippine cities…" aria-label="Search" autocomplete="off">
+            <div id="search-dropdown" class="search-dropdown" role="listbox" aria-label="City suggestions" hidden></div>
+          </div>
           <button type="submit">Search</button>
           <button type="button" id="geo-btn" title="Use my location" class="geo-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

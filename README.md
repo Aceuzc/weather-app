@@ -4,9 +4,7 @@ A Philippines-focused weather dashboard built with **HTML, CSS, and vanilla Java
 
 ## Live demo
 
-Add your Vercel URL here after deploy, for example:
-
-`https://your-project.vercel.app`
+`https://weather-app-mu-ten-10.vercel.app/`
 
 ## Features
 
@@ -46,7 +44,7 @@ Add 2–3 screenshots to a `docs/` folder and link them here for your portfolio 
    vercel dev
    ```
 
-3. **Option B — Static only**  
+3. **Option B — Static only**
    Open `index.html` via a local server, or use Live Server. On first weather request you’ll be prompted for an OpenWeatherMap API key (stored in `localStorage`).
 
 ## Environment variables (Vercel)

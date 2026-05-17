@@ -309,18 +309,6 @@ body {
   color: #fca5a5;
 }
 
-/* Suppress entry animation for quiet (same-city) banner updates */
-.alert-no-anim {
-  animation: none !important;
-}
-
-/* Dismiss-all toolbar */
-.alert-toolbar {
-  display: flex;
-  justify-content: flex-end;
-  padding-bottom: 4px;
-}
-
 /* ============================================================
    TOP BAR
    ============================================================ */
@@ -337,12 +325,19 @@ body {
   display: flex;
   gap: 8px;
   flex: 1;
-  max-width: 350px;
+  max-width: 420px;
   min-width: 0;
 }
 
-.search-bar input {
+/* ── Autocomplete wrapper ── */
+.search-autocomplete-wrap {
   flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.search-bar input {
+  width: 100%;
   min-width: 0;
   padding: 10px 16px;
   border-radius: 10px;
@@ -353,7 +348,7 @@ body {
   color: var(--text-light);
   font-size: 14px;
   outline: none;
-  transition: border-color 0.25s, box-shadow 0.25s;
+  transition: border-color 0.25s, box-shadow 0.25s, border-radius 0.2s;
   box-shadow: 0 2px 12px rgba(0,10,40,0.3);
 }
 
@@ -362,6 +357,112 @@ body {
 .search-bar input:focus {
   border-color: rgba(96,165,250,0.5);
   box-shadow: 0 0 0 3px rgba(96,165,250,0.14);
+}
+
+/* When dropdown is open, square off the bottom corners of the input */
+.search-bar input.dropdown-open {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-bottom-color: rgba(96,165,250,0.2);
+}
+
+/* ── Dropdown panel ── */
+.search-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: rgba(8,28,60,0.97);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(96,165,250,0.3);
+  border-top: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 16px 48px rgba(0,5,20,0.6);
+  overflow: hidden;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(96,165,250,0.3) transparent;
+  animation: dropdownSlide 0.18s cubic-bezier(0.16,1,0.3,1);
+}
+
+.search-dropdown::-webkit-scrollbar { width: 4px; }
+.search-dropdown::-webkit-scrollbar-thumb { background: rgba(96,165,250,0.3); border-radius: 2px; }
+
+@keyframes dropdownSlide {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Section header inside dropdown */
+.sd-section {
+  padding: 8px 14px 4px;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--accent);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sd-section:first-child { border-top: none; }
+
+/* Individual suggestion row */
+.sd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--text-light);
+}
+.sd-item:hover,
+.sd-item.sd-active {
+  background: rgba(96,165,250,0.12);
+}
+.sd-item-emoji  { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; }
+.sd-item-name   { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sd-item-region { font-size: 10px; color: var(--text-muted); font-weight: 500; flex-shrink: 0; }
+.sd-item-meta   { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.sd-item-temp   { font-size: 12px; font-weight: 700; color: var(--accent); }
+.sd-item-cond   { font-size: 11px; color: var(--text-muted); max-width: 80px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Highlight matched text */
+.sd-match { color: var(--accent); font-weight: 800; }
+
+/* Empty / no results */
+.sd-empty {
+  padding: 20px 14px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Keyboard hint at the bottom */
+.sd-hint {
+  padding: 6px 14px;
+  font-size: 10px;
+  color: rgba(255,255,255,0.25);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  gap: 10px;
+}
+.sd-hint kbd {
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 10px;
+  font-family: inherit;
 }
 
 .search-bar button[type="submit"] {
@@ -871,7 +972,7 @@ body {
 
 /* Panels */
 .summary-panel         { display: none; width: 100%; max-width: 100%; min-width: 0; height: 100%; }
-.summary-panel.active  { display: flex; animation: fadeInUp 0.3s ease-out; }
+.summary-panel.active  { display: flex; flex-direction: column; animation: fadeInUp 0.3s ease-out; }
 
 .summary-chart {
   flex: 1;
@@ -901,6 +1002,8 @@ body {
   overflow-y: auto;
   padding: 4px 0;
   width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .hourly-item {
@@ -937,10 +1040,14 @@ body {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
 }
 
 .detail-card {
   min-width: 0;
+  min-height: 90px;
   background: var(--surface-a);
   border: 1px solid rgba(255,255,255,0.13);
   border-radius: 12px;
@@ -1193,6 +1300,8 @@ body {
   width: 100%;
   overflow-y: auto;
   padding: 2px 0;
+  flex: 1;
+  min-height: 0;
 }
 .outfit-placeholder {
   color: var(--text-muted);
@@ -1444,8 +1553,9 @@ body {
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .legend-dot  { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
 
-#panel-feellike { flex-direction: column; }
-#panel-feellike .summary-chart { flex: 1; }
+/* #panel-feellike: flex-direction:column is now inherited from .summary-panel.active */
+#panel-feellike .summary-chart { flex: 1; min-height: 0; }
+#panel-summary .summary-chart  { flex: 1; min-height: 0; }
 
 /* ============================================================
    MORE CITIES MODAL
@@ -1724,8 +1834,17 @@ body {
   }
 
   .summary-panel.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
     min-height: 0;
+  }
+
+  .summary-panel.active .details-grid,
+  .summary-panel.active .hourly-list,
+  .summary-panel.active .outfit-content {
+    flex: none;
+    overflow-y: visible;
+    max-height: none;
   }
 
   .summary-chart {
@@ -1864,9 +1983,11 @@ body {
     max-width: 100%;
     order: 1;
   }
+  .search-autocomplete-wrap { grid-column: 1; }
   .search-bar input { font-size: 16px; } /* prevents iOS zoom */
   .search-bar button[type="submit"] { padding: 10px 12px; }
   .geo-btn { padding: 10px 11px; }
+  .search-dropdown { max-height: 260px; }
 
   .compare-open-btn { order: 2; flex: 1; text-align: center; font-size: 12px; padding: 9px 10px; }
   .day-display { order: 3; font-size: 12px; padding: 9px 12px; }
@@ -1964,7 +2085,6 @@ body {
 
   .summary-content,
   .summary-panel {
-    display: block;
     width: 100%;
     max-width: 100%;
     min-width: 0;
@@ -1973,6 +2093,22 @@ body {
     max-height: none;
     overflow-x: hidden;
     overflow-y: visible;
+  }
+
+  .summary-content { display: block; }
+
+  .summary-panel { display: none; }
+  .summary-panel.active {
+    display: flex;
+    flex-direction: column;
+  }
+  .summary-panel.active .details-grid,
+  .summary-panel.active .hourly-list,
+  .summary-panel.active .outfit-content {
+    flex: none;
+    overflow-y: visible;
+    max-height: none;
+    min-height: 0;
   }
 
   .summary-panel:not(.active) { display: none; }
@@ -2002,7 +2138,7 @@ body {
 
   /* More details */
   .details-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
-  .detail-card  { padding: 10px; gap: 3px; }
+  .detail-card  { padding: 10px; gap: 3px; min-height: 76px; }
   .detail-icon  { font-size: 18px; }
   .detail-value { font-size: 16px; }
   .detail-label { font-size: 10px; }
@@ -2345,11 +2481,14 @@ body {
   padding: 12px;
   margin-bottom: 2px;
   overflow: hidden;
+  min-height: 130px;
+  grid-column: 1 / -1;
 }
 
 .sunpath-canvas {
   display: block;
   width: 100%;
+  min-height: 110px;
 }
 
 /* ============================================================
@@ -2388,7 +2527,7 @@ body {
 }
 
 /* ============================================================
-   PULL-TO-REFRESH INDICATOR
+    PULL-TO-REFRESH INDICATOR
    ============================================================ */
 .ptr-indicator {
   position: fixed;
@@ -2420,9 +2559,9 @@ body {
   font-size: 14px;
 }
 
-/* ============================================================
-   FLOATING CARD MIN-HEIGHT GUARDS
-   ============================================================ */
+/*============================================================
+  FLOATING CARD MIN-HEIGHT GUARDS
+  ============================================================ */
 .section.floating-card {
   min-height: 360px;
 }

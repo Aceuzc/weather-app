@@ -186,6 +186,9 @@ let currentWeatherData = null;
 let activeForecastDays = 6;
 let lastFetchTime = null;
 
+// Cities modal weather cache — declared here so autocomplete can access it early
+const citiesWeatherCache = {};
+
 // Set current day display
 const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 elements.dayDisplay.textContent = dayNames[new Date().getDay()];
@@ -796,10 +799,243 @@ async function updatePopularCities(){
 	}
 }
 
+// ===== SEARCH AUTOCOMPLETE DROPDOWN =====
+(function initSearchAutocomplete() {
+	const input    = elements.cityInput;
+	const dropdown = document.getElementById('search-dropdown');
+	if (!input || !dropdown) return;
+
+	// Build flat city list with region labels (populated lazily from CITIES_BY_REGION)
+	// We reference it after CITIES_BY_REGION is declared below, so we use a getter.
+	function getAllCities() {
+		if (typeof CITIES_BY_REGION === 'undefined') return [];
+		return Object.entries(CITIES_BY_REGION).flatMap(([region, cities]) =>
+			cities.map(city => ({ city, region }))
+		);
+	}
+
+	let activeIdx = -1;
+	let currentItems = [];
+
+	// ── Open / close helpers ──────────────────────────────────────────────
+	function openDropdown() {
+		dropdown.removeAttribute('hidden');
+		input.classList.add('dropdown-open');
+	}
+	function closeDropdown() {
+		dropdown.setAttribute('hidden', '');
+		input.classList.remove('dropdown-open');
+		activeIdx = -1;
+		currentItems = [];
+	}
+
+	// ── Highlight matched substring ───────────────────────────────────────
+	function highlight(text, query) {
+		if (!query) return text;
+		const idx = text.toLowerCase().indexOf(query.toLowerCase());
+		if (idx === -1) return text;
+		return (
+			text.slice(0, idx) +
+			`<span class="sd-match">${text.slice(idx, idx + query.length)}</span>` +
+			text.slice(idx + query.length)
+		);
+	}
+
+	// ── Render section header ─────────────────────────────────────────────
+	function sectionHeader(label) {
+		const div = document.createElement('div');
+		div.className = 'sd-section';
+		div.textContent = label;
+		return div;
+	}
+
+	// ── Build a clickable suggestion row ─────────────────────────────────
+	function buildItem(cityName, regionLabel, query, weatherData) {
+		const btn = document.createElement('button');
+		btn.type = 'button';
+		btn.className = 'sd-item';
+		btn.setAttribute('role', 'option');
+		btn.dataset.city = cityName;
+
+		const emoji = weatherData ? getWeatherEmoji(weatherData.weather[0].main) : '🌐';
+		const temp  = weatherData ? formatTemp(weatherData.main.temp) : '';
+		const cond  = weatherData
+			? weatherData.weather[0].description.replace(/\b\w/g, c => c.toUpperCase())
+			: '';
+
+		btn.innerHTML = `
+			<span class="sd-item-emoji">${emoji}</span>
+			<span class="sd-item-name">${highlight(cityName, query)}</span>
+			<span class="sd-item-region">${regionLabel}</span>
+			<span class="sd-item-meta">
+				${temp  ? `<span class="sd-item-temp">${temp}</span>` : ''}
+				${cond  ? `<span class="sd-item-cond">${cond}</span>` : ''}
+			</span>
+		`;
+
+		btn.addEventListener('mousedown', e => {
+			e.preventDefault(); // keep focus on input
+			selectCity(cityName);
+		});
+		return btn;
+	}
+
+	// ── Select a city ─────────────────────────────────────────────────────
+	function selectCity(cityName) {
+		input.value = cityName;
+		closeDropdown();
+		getWeatherByCity(`${cityName},PH`);
+	}
+
+	// ── Render the dropdown contents ──────────────────────────────────────
+	function renderDropdown(query) {
+		dropdown.innerHTML = '';
+		activeIdx = -1;
+		currentItems = [];
+
+		const allCities = getAllCities();
+		if (allCities.length === 0) { closeDropdown(); return; }
+
+		const q = query.trim().toLowerCase();
+
+		// ── Empty query: show Favorites then Recent ──────────────────────
+		if (!q) {
+			const favs   = getFavorites();
+			const recent = getRecent();
+			let hasContent = false;
+
+			if (favs.length) {
+				dropdown.appendChild(sectionHeader('⭐ Favorites'));
+				favs.forEach(city => {
+					const btn = buildItem(city, 'Favorite', '', citiesWeatherCache[city] || null);
+					dropdown.appendChild(btn);
+					currentItems.push(btn);
+				});
+				hasContent = true;
+			}
+
+			if (recent.length) {
+				dropdown.appendChild(sectionHeader('🕒 Recent'));
+				recent.forEach(city => {
+					const btn = buildItem(city, 'Recent', '', citiesWeatherCache[city] || null);
+					dropdown.appendChild(btn);
+					currentItems.push(btn);
+				});
+				hasContent = true;
+			}
+
+			if (!hasContent) {
+				// Show first 8 popular cities as suggestions
+				dropdown.appendChild(sectionHeader('🇵🇭 Popular Cities'));
+				allCities.slice(0, 8).forEach(({ city, region }) => {
+					const btn = buildItem(city, region, '', citiesWeatherCache[city] || null);
+					dropdown.appendChild(btn);
+					currentItems.push(btn);
+				});
+			}
+
+			appendHint();
+			openDropdown();
+			return;
+		}
+
+		// ── Typed query: filter all cities ───────────────────────────────
+		const matches = allCities.filter(({ city }) =>
+			city.toLowerCase().includes(q)
+		);
+
+		if (matches.length === 0) {
+			const empty = document.createElement('div');
+			empty.className = 'sd-empty';
+			empty.textContent = `No Philippine city matches "${query}"`;
+			dropdown.appendChild(empty);
+			appendHint();
+			openDropdown();
+			return;
+		}
+
+		// Group by region, show max 12 total
+		const grouped = {};
+		let total = 0;
+		for (const { city, region } of matches) {
+			if (total >= 12) break;
+			if (!grouped[region]) grouped[region] = [];
+			grouped[region].push(city);
+			total++;
+		}
+
+		Object.entries(grouped).forEach(([region, cities]) => {
+			dropdown.appendChild(sectionHeader(region));
+			cities.forEach(city => {
+				const btn = buildItem(city, '', q, citiesWeatherCache[city] || null);
+				dropdown.appendChild(btn);
+				currentItems.push(btn);
+			});
+		});
+
+		if (matches.length > 12) {
+			const more = document.createElement('div');
+			more.className = 'sd-section';
+			more.style.color = 'rgba(255,255,255,0.3)';
+			more.textContent = `+${matches.length - 12} more — keep typing`;
+			dropdown.appendChild(more);
+		}
+
+		appendHint();
+		openDropdown();
+	}
+
+	function appendHint() {
+		const hint = document.createElement('div');
+		hint.className = 'sd-hint';
+		hint.innerHTML = '<kbd>↑↓</kbd> navigate &nbsp; <kbd>↵</kbd> select &nbsp; <kbd>Esc</kbd> close';
+		dropdown.appendChild(hint);
+	}
+
+	// ── Keyboard navigation ───────────────────────────────────────────────
+	function updateActiveItem(newIdx) {
+		currentItems.forEach((el, i) => el.classList.toggle('sd-active', i === newIdx));
+		if (currentItems[newIdx]) {
+			currentItems[newIdx].scrollIntoView({ block: 'nearest' });
+		}
+		activeIdx = newIdx;
+	}
+
+	input.addEventListener('keydown', e => {
+		if (!currentItems.length) return;
+		if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			updateActiveItem(Math.min(activeIdx + 1, currentItems.length - 1));
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			updateActiveItem(Math.max(activeIdx - 1, 0));
+		} else if (e.key === 'Enter' && activeIdx >= 0) {
+			e.preventDefault();
+			selectCity(currentItems[activeIdx].dataset.city);
+		} else if (e.key === 'Escape') {
+			closeDropdown();
+		}
+	});
+
+	// ── Input events ──────────────────────────────────────────────────────
+	input.addEventListener('input', () => renderDropdown(input.value));
+	input.addEventListener('focus', () => renderDropdown(input.value));
+
+	// Close when clicking outside
+	document.addEventListener('mousedown', e => {
+		if (!input.closest('.search-autocomplete-wrap').contains(e.target)) {
+			closeDropdown();
+		}
+	});
+})();
+
 // ===== EVENT LISTENERS =====
 elements.form.addEventListener('submit', e => {
 	e.preventDefault();
 	const q = elements.cityInput.value.trim();
+	// Close dropdown on submit
+	document.getElementById('search-dropdown')?.setAttribute('hidden', '');
+	elements.cityInput.classList.remove('dropdown-open');
 	if(q) getWeatherByCity(q);
 });
 
@@ -2121,8 +2357,7 @@ const CITIES_BY_REGION = {
   ]
 };
 
-// Cache so we don't refetch on reopen
-const citiesWeatherCache = {};
+// citiesWeatherCache is declared at the top of the file (shared with autocomplete)
 let citiesModalOpen = false;
 
 const citiesModal        = document.getElementById('cities-modal');
