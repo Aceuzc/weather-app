@@ -39,8 +39,6 @@ A Philippines-focused weather dashboard built with **HTML, CSS, and vanilla Java
 
 ### Mobile View
 ![Mobile View](docs/mobile.png)
-## Local development
-
 
 ## Local development
 
