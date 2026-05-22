@@ -5,8 +5,8 @@
 	<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0f172a">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Philippines-focused weather dashboard — compare cities, forecasts, outfit tips, and plain-language alerts.">
-  <title>Weather Dashboard PH</title>
+  <meta name="description" content="Panahon PH is a Philippines-focused weather desk for city forecasts, map checks, heat index, rain timing, and daily planning.">
+  <title>Panahon PH Weather Desk</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
@@ -20,6 +20,13 @@
     <main class="main-content">
       <!-- Top Search Bar -->
       <div class="top-bar">
+        <div class="app-brand" aria-label="Panahon PH Weather Desk">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div class="brand-copy">
+            <div class="brand-name">Panahon PH</div>
+            <div class="brand-subtitle">Weather desk</div>
+          </div>
+        </div>
         <form id="search-form" class="search-bar">
           <div class="search-autocomplete-wrap">
             <input id="city-input" type="search" placeholder="Search Philippine cities…" aria-label="Search" autocomplete="off">
@@ -63,7 +70,7 @@
         <div class="section weather-section floating-card float-delay-1">
           <div class="weather-card">
             <div class="weather-card-header">
-              <h3>Current Weather</h3>
+              <h3>Current Conditions</h3>
               <div class="weather-card-actions">
                 <button type="button" id="favorite-btn" class="favorite-btn" aria-pressed="false" title="Add to favorites">☆</button>
                 <button type="button" id="share-btn" class="share-btn" title="Share weather card">📸 Share</button>
@@ -113,7 +120,10 @@
         <!-- Center: Map Section -->
         <div class="section map-section floating-card float-delay-2">
           <div class="map-card">
-            <h3>Weather Map</h3>
+            <div class="map-card-header">
+              <h3>Metro Weather Map</h3>
+              <span class="map-tag">Live marker</span>
+            </div>
             <iframe id="weather-map" width="100%" height="100%" frameborder="0"
               src="https://www.openstreetmap.org/export/embed.html?bbox=120.8%2C14.4%2C121.1%2C14.8&layer=mapnik&marker=14.5995%2C120.9842" style="border-radius: 12px;"></iframe>
           </div>
@@ -123,7 +133,7 @@
         <div class="section cities-section floating-card float-delay-3">
           <div class="cities-card">
             <div class="cities-header">
-              <h3>Popular Philippine Cities</h3>
+              <h3>City Watchlist</h3>
               <button id="view-more-btn" class="view-more">View more →</button>
             </div>
             <div class="cities-list" id="cities-list">
@@ -157,7 +167,7 @@
         <!-- Forecast Section -->
         <div class="forecast-section floating-card float-delay-4">
           <div class="section-header">
-            <h3>Forecast</h3>
+            <h3>Rain Window</h3>
             <div class="forecast-tabs" id="forecast-tabs">
               <button class="tab-btn active" data-days="6">6 Days</button>
               <button class="tab-btn" data-days="5">5 Days</button>
@@ -170,9 +180,9 @@
         <!-- Summary/Hourly Chart Section -->
         <div class="summary-section floating-card float-delay-5">
           <div class="section-header">
-            <h3>Summary</h3>
+            <h3>Field Brief</h3>
             <div class="summary-tabs" id="summary-tabs">
-              <button class="tab-btn active" data-view="summary">Summary</button>
+              <button class="tab-btn active" data-view="summary">Brief</button>
               <button class="tab-btn" data-view="hourly">Hourly</button>
               <button class="tab-btn" data-view="feellike">🌡️ Feel</button>
               <button class="tab-btn" data-view="details">More Details</button>
@@ -180,7 +190,7 @@
             </div>
           </div>
           <div class="ai-summary" id="ai-summary">
-            <div class="ai-summary-title">AI Weather Summary</div>
+            <div class="ai-summary-title">Local Weather Brief</div>
             <div class="ai-summary-text" id="ai-summary-text">--</div>
           </div>
           <div class="summary-content" id="summary-content">

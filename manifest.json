@@ -1,7 +1,7 @@
 {
-  "name": "Weather Dashboard PH",
-  "short_name": "Weather PH",
-  "description": "Philippines-focused weather dashboard with city compare, forecasts, and alerts.",
+  "name": "Panahon PH Weather Desk",
+  "short_name": "Panahon PH",
+  "description": "Philippines-focused weather desk with city compare, forecasts, heat index, rain timing, and daily planning.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a2a4a",
