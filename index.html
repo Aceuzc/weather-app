@@ -9,7 +9,7 @@
   <title>Panahon PH Weather Desk</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌤️</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f3560'/%3E%3Ccircle cx='24' cy='23' r='10' fill='%23fbbf24'/%3E%3Cpath d='M20 44h28a10 10 0 0 0 0-20 15 15 0 0 0-28-3A11 11 0 0 0 20 44Z' fill='%23dbeafe'/%3E%3C/svg%3E">
 </head>
 <body>
   <!-- Animated weather background layer -->
@@ -72,12 +72,19 @@
             <div class="weather-card-header">
               <h3>Current Conditions</h3>
               <div class="weather-card-actions">
-                <button type="button" id="favorite-btn" class="favorite-btn" aria-pressed="false" title="Add to favorites">☆</button>
-                <button type="button" id="share-btn" class="share-btn" title="Share weather card">📸 Share</button>
+                <button type="button" id="favorite-btn" class="favorite-btn" aria-pressed="false" aria-label="Add to favorites" title="Add to favorites">
+                  <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg>
+                </button>
+                <button type="button" id="share-btn" class="share-btn" title="Share weather card">
+                  <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6 13 4H9L7.5 6H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-4.5Z"/><circle cx="12" cy="12.5" r="3.5"/></svg>
+                  Share
+                </button>
               </div>
             </div>
             <div class="weather-display">
-              <div class="weather-icon-large" id="weather-icon">☀️</div>
+              <div class="weather-icon-large" id="weather-icon">
+                <svg class="weather-svg weather-svg--large" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16.5 18H8a4 4 0 1 1 1.3-7.78A5.3 5.3 0 0 1 20 12.8 3.2 3.2 0 0 1 16.5 18Z"/><circle cx="15.5" cy="6.5" r="3"/><path d="M15.5 1.5v2M21.5 6.5h1M19.7 2.3l-1.3 1.3"/></svg>
+              </div>
               <div class="temp-block">
                 <div class="temp" id="temp">24</div>
                 <div class="temp-unit">°C</div>
@@ -87,10 +94,10 @@
             <div class="city-name" id="city-name">--</div>
             <div class="last-updated" id="last-updated"></div>
             <div class="weather-stats">
-              <div class="stat"><span class="label">💧</span><span class="value" id="stat-humidity">--</span></div>
-              <div class="stat"><span class="label">💨</span><span class="value" id="stat-wind">--</span></div>
-              <div class="stat"><span class="label">🌡️</span><span class="value" id="stat-pressure">--</span></div>
-              <div class="stat"><span class="label">👁️</span><span class="value" id="stat-visibility">--</span></div>
+              <div class="stat"><span class="label"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Humidity"><path d="M12 3s6 6.4 6 11a6 6 0 0 1-12 0c0-4.6 6-11 6-11Z"/></svg></span><span class="value" id="stat-humidity">--</span></div>
+              <div class="stat"><span class="label"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Wind"><path d="M3 8h12a3 3 0 1 0-3-3"/><path d="M4 13h16"/><path d="M3 18h11a3 3 0 1 1-3 3"/></svg></span><span class="value" id="stat-wind">--</span></div>
+              <div class="stat"><span class="label"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Pressure"><path d="M4 14a8 8 0 1 1 16 0"/><path d="m12 14 4-4"/><path d="M7 18h10"/></svg></span><span class="value" id="stat-pressure">--</span></div>
+              <div class="stat"><span class="label"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="Visibility"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg></span><span class="value" id="stat-visibility">--</span></div>
             </div>
             <!-- Mood Board -->
             <div class="mood-board" id="mood-board">
@@ -106,7 +113,7 @@
             <!-- UV Index -->
             <div class="uv-index-card" id="uv-index-card">
               <div class="uv-top">
-                <span class="uv-icon">☀️</span>
+                <span class="uv-icon"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-label="UV index"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg></span>
                 <div>
                   <div class="uv-label-small">UV Index</div>
                   <div class="uv-value">-- <span class="uv-risk">Loading…</span></div>
@@ -134,7 +141,10 @@
           <div class="cities-card">
             <div class="cities-header">
               <h3>City Watchlist</h3>
-              <button id="view-more-btn" class="view-more">View more →</button>
+              <button id="view-more-btn" class="view-more">
+                View more
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
             </div>
             <div class="cities-list" id="cities-list">
               <div class="city-item">
@@ -184,9 +194,15 @@
             <div class="summary-tabs" id="summary-tabs">
               <button class="tab-btn active" data-view="summary">Brief</button>
               <button class="tab-btn" data-view="hourly">Hourly</button>
-              <button class="tab-btn" data-view="feellike">🌡️ Feel</button>
+              <button class="tab-btn" data-view="feellike">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 8v7"/></svg>
+                Feel
+              </button>
               <button class="tab-btn" data-view="details">More Details</button>
-              <button class="tab-btn" data-view="outfit">👕 Outfit</button>
+              <button class="tab-btn" data-view="outfit">
+                <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4 5 6l-2 4 4 2 1-2v10h8V10l1 2 4-2-2-4-3-2a4 4 0 0 1-8 0Z"/></svg>
+                Outfit
+              </button>
             </div>
           </div>
           <div class="ai-summary" id="ai-summary">
@@ -229,10 +245,12 @@
     <div class="cities-modal-dialog floating-card">
       <div class="cities-modal-header">
         <div>
-          <h2 class="cities-modal-title" id="cities-modal-title">🇵🇭 Philippine Cities</h2>
+          <h2 class="cities-modal-title" id="cities-modal-title">Philippine Cities</h2>
           <p class="cities-modal-subtitle">Live weather across the Philippines — click any city to load it</p>
         </div>
-        <button type="button" id="cities-modal-close" class="compare-close" aria-label="Close cities browser">✕</button>
+        <button type="button" id="cities-modal-close" class="compare-close" aria-label="Close cities browser">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
       </div>
       <div class="cities-modal-search-row">
         <input id="cities-modal-search" type="text" class="compare-city-input" placeholder="Filter cities…" autocomplete="off">
@@ -248,10 +266,12 @@
     <div class="compare-dialog floating-card">
       <div class="compare-header">
         <div>
-          <h2 class="compare-title" id="compare-title">⚖️ City Comparison</h2>
+          <h2 class="compare-title" id="compare-title">City Comparison</h2>
           <p class="compare-subtitle">Pin up to 3 cities and compare side by side</p>
         </div>
-        <button type="button" id="compare-close" class="compare-close" aria-label="Close comparison">✕</button>
+        <button type="button" id="compare-close" class="compare-close" aria-label="Close comparison">
+          <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
       </div>
       <div class="compare-search-row">
         <input id="compare-city-input" type="text" class="compare-city-input" placeholder="Search a city to add…">

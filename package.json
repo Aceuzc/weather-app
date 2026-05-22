@@ -4,6 +4,6 @@
   "private": true,
   "description": "Philippines-focused weather dashboard",
   "scripts": {
-    "test": "node --test tests/"
+    "test": "node --test tests/smoke.test.js tests/weather-utils.test.mjs"
   }
 }

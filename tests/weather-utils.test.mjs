@@ -4,7 +4,7 @@ import {
 	toDisplay,
 	unitLabel,
 	formatTemp,
-	getWeatherEmoji,
+	getWeatherIconName,
 	buildAlertSignature
 } from '../lib/weather-utils.mjs';
 
@@ -23,10 +23,10 @@ test('formatTemp includes unit', () => {
 	assert.equal(formatTemp(20, 'F'), '68°F');
 });
 
-test('getWeatherEmoji maps conditions', () => {
-	assert.equal(getWeatherEmoji('Thunderstorm'), '⛈️');
-	assert.equal(getWeatherEmoji('Clear'), '☀️');
-	assert.equal(getWeatherEmoji('unknown'), '🌤️');
+test('getWeatherIconName maps conditions', () => {
+	assert.equal(getWeatherIconName('Thunderstorm'), 'storm');
+	assert.equal(getWeatherIconName('Clear'), 'sun');
+	assert.equal(getWeatherIconName('unknown'), 'cloudSun');
 });
 
 test('buildAlertSignature is stable', () => {
