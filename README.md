@@ -31,6 +31,8 @@ A Philippines-focused weather dashboard built with **HTML, CSS, and vanilla Java
 
 ## Screenshots
 
+## Screenshots
+
 ### Dashboard
 ![Dashboard](docs/dashboard.png)
 
@@ -43,16 +45,23 @@ A Philippines-focused weather dashboard built with **HTML, CSS, and vanilla Java
 ## Local development
 
 1. Clone the repo and open the folder.
-2. **Option A — Vercel CLI (recommended)**
 
-   ```bash
-   npm i -g vercel
-   vercel env pull .env.local   # or set OPENWEATHERMAP_API_KEY manually
-   vercel dev
-   ```
+### Option A — Vercel CLI (recommended)
 
-3. **Option B — Static only**
-   Open `index.html` via a local server, or use Live Server. On first weather request you’ll be prompted for an OpenWeatherMap API key (stored in `localStorage`).
+```bash
+npm i -g vercel
+vercel env pull .env.local
+vercel dev
+```
+
+Or set `OPENWEATHERMAP_API_KEY` manually.
+
+### Option B — Static only
+
+Open `index.html` using a local server or VS Code Live Server.
+
+On first weather request, the app will prompt for an OpenWeatherMap API key and store it in `localStorage`.
+
 
 ## Environment variables (Vercel)
 
@@ -77,6 +86,10 @@ Runs unit tests for shared weather utilities in `lib/weather-utils.mjs`.
 ```
 weather-app/
 ├── api/weather.js      # Vercel serverless proxy
+├── docs/
+   └── dashboard.png
+   └── compare.png
+   └── mobile.png
 ├── lib/weather-utils.mjs
 ├── tests/
 ├── index.html

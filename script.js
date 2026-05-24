@@ -1,29 +1,52 @@
 const API_KEY_STORAGE = 'owm_api_key';
-let API_KEY = localStorage.getItem(API_KEY_STORAGE) || '';
+const WEATHER_PROXY_PATH = '/api/weather';
 
-function ensureApiKey() {
-	if (API_KEY && API_KEY !== 'YOUR_OPENWEATHERMAP_API_KEY') return true;
-	const key = prompt('Enter your OpenWeatherMap API key (stored locally in this browser):');
-	if (!key?.trim()) {
-		alert('API key required');
+function readStorage(storage, key, fallback = '') {
+	try {
+		return storage.getItem(key) ?? fallback;
+	} catch {
+		return fallback;
+	}
+}
+
+function writeStorage(storage, key, value) {
+	try {
+		storage.setItem(key, value);
+		return true;
+	} catch {
 		return false;
 	}
+}
+
+let API_KEY = readStorage(localStorage, API_KEY_STORAGE, '');
+
+function hasClientApiKey() {
+	return Boolean(API_KEY && API_KEY !== 'YOUR_OPENWEATHERMAP_API_KEY');
+}
+
+function saveClientApiKey(key) {
 	API_KEY = key.trim();
-	localStorage.setItem(API_KEY_STORAGE, API_KEY);
-	return true;
+	return writeStorage(localStorage, API_KEY_STORAGE, API_KEY);
+}
+
+function runAfterCriticalWork(callback, timeout = 1400) {
+	if ('requestIdleCallback' in window) {
+		return window.requestIdleCallback(callback, { timeout });
+	}
+	return window.setTimeout(callback, timeout);
 }
 
 // ── FAVORITES & RECENT ───────────────────────────────────────────────────────
 const FAVORITES_KEY = 'weather_favorites';
 const RECENT_KEY    = 'weather_recent';
 
-function getFavorites(){ try { return JSON.parse(localStorage.getItem(FAVORITES_KEY)||'[]'); } catch { return []; } }
-function getRecent()   { try { return JSON.parse(localStorage.getItem(RECENT_KEY)||'[]');    } catch { return []; } }
+function getFavorites(){ try { return JSON.parse(readStorage(localStorage, FAVORITES_KEY, '[]')); } catch { return []; } }
+function getRecent()   { try { return JSON.parse(readStorage(localStorage, RECENT_KEY, '[]'));    } catch { return []; } }
 
 function addToRecent(cityName){
 	let recent = getRecent();
 	recent = [cityName, ...recent.filter(c => c.toLowerCase() !== cityName.toLowerCase())].slice(0, 6);
-	localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+	writeStorage(localStorage, RECENT_KEY, JSON.stringify(recent));
 	renderQuickAccess();
 }
 
@@ -39,7 +62,7 @@ function toggleFavorite(){
 		favs.splice(idx, 1);
 		showNavToast(`${city} removed from favorites`);
 	}
-	localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+	writeStorage(localStorage, FAVORITES_KEY, JSON.stringify(favs));
 	updateFavoriteBtn();
 	renderQuickAccess();
 }
@@ -96,8 +119,7 @@ document.getElementById('favorite-btn')?.addEventListener('click', toggleFavorit
 // ── UV INDEX ──────────────────────────────────────────────────────────────────
 async function fetchUVIndex(lat, lon){
 	try {
-		const url = `https://api.openweathermap.org/data/2.5/uvi?lat=${lat}&lon=${lon}&appid=${API_KEY}`;
-		const data = await fetchJSON(url);
+		const data = await fetchWeather('uvi', { lat, lon }, { silent: true });
 		return typeof data.value === 'number' ? data.value : null;
 	} catch { return null; }
 }
@@ -125,7 +147,7 @@ function renderUVIndex(uv){
 			</div>
 		</div>
 		<div class="uv-bar-track">
-			<div class="uv-bar-fill" style="width:${pct}%;background:${color}"></div>
+			<div class="uv-bar-fill" style="transform:scaleX(${pct / 100});background:${color}"></div>
 		</div>
 	`;
 }
@@ -177,7 +199,8 @@ const elements = {
 	hourlyList: document.getElementById('hourly-list'),
 	detailsGrid: document.getElementById('details-grid'),
 	aiSummary: document.getElementById('ai-summary'),
-	aiSummaryText: document.getElementById('ai-summary-text')
+	aiSummaryText: document.getElementById('ai-summary-text'),
+	weatherStatus: document.getElementById('weather-status')
 };
 
 // Store data for re-rendering
@@ -186,13 +209,46 @@ let hourlyData = [];
 let currentWeatherData = null;
 let activeForecastDays = 6;
 let lastFetchTime = null;
+let activeWeatherRequestId = 0;
+let mapFrameLoaded = false;
+let mapFrameQueued = false;
 
 // Cities modal weather cache — declared here so autocomplete can access it early
 const citiesWeatherCache = {};
 
+function mountQueuedMapFrame() {
+	const frame = elements.weatherMap;
+	if (!frame) return;
+	const src = frame.dataset.src;
+	if (!src) return;
+	if (frame.getAttribute('src') !== src) frame.src = src;
+	frame.removeAttribute('aria-busy');
+	mapFrameLoaded = true;
+	mapFrameQueued = false;
+}
+
+function scheduleMapFrameMount() {
+	if (mapFrameLoaded || mapFrameQueued || !elements.weatherMap?.dataset.src) return;
+	mapFrameQueued = true;
+	runAfterCriticalWork(mountQueuedMapFrame, 2200);
+}
+
+function queueMapFrameSrc(src) {
+	const frame = elements.weatherMap;
+	if (!frame) return;
+	frame.dataset.src = src;
+	if (mapFrameLoaded) {
+		if (frame.getAttribute('src') !== src) frame.src = src;
+		frame.removeAttribute('aria-busy');
+		return;
+	}
+	scheduleMapFrameMount();
+}
+
 // Set current day display
 const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 elements.dayDisplay.textContent = dayNames[new Date().getDay()];
+scheduleMapFrameMount();
 
 const ICON_PATHS = {
 	add: '<path d="M12 5v14M5 12h14"/>',
@@ -283,7 +339,7 @@ function drawWeatherMark(ctx, condition, x, y, size) {
 	ctx.lineCap = 'round';
 	ctx.lineJoin = 'round';
 	ctx.strokeStyle = 'rgba(224,242,254,0.9)';
-	ctx.fillStyle = 'rgba(96,165,250,0.16)';
+	ctx.fillStyle = 'rgba(134,182,232,0.12)';
 
 	if (sunTypes.has(type)) {
 		ctx.beginPath();
@@ -353,10 +409,104 @@ function drawWeatherMark(ctx, condition, x, y, size) {
 	ctx.restore();
 }
 
+class WeatherRequestError extends Error {
+	constructor(message, options = {}) {
+		super(message);
+		this.name = 'WeatherRequestError';
+		this.status = options.status || 0;
+		this.kind = options.kind || 'weather';
+		this.details = options.details || '';
+	}
+}
+
+function buildWeatherProxyUrl(endpoint, params = {}) {
+	const base = window.location.origin && window.location.origin !== 'null'
+		? window.location.origin
+		: window.location.href;
+	const url = new URL(WEATHER_PROXY_PATH, base);
+	url.searchParams.set('endpoint', endpoint);
+	Object.entries(params).forEach(([key, value]) => {
+		if(value !== null && value !== undefined && value !== '') {
+			url.searchParams.set(key, value);
+		}
+	});
+	return url.toString();
+}
+
+function buildOpenWeatherUrl(endpoint, params = {}) {
+	const url = new URL(`https://api.openweathermap.org/data/2.5/${endpoint}`);
+	Object.entries(params).forEach(([key, value]) => {
+		if(value !== null && value !== undefined && value !== '') {
+			url.searchParams.set(key, value);
+		}
+	});
+	url.searchParams.set('appid', API_KEY);
+	if(!url.searchParams.has('units') && endpoint !== 'uvi') {
+		url.searchParams.set('units', 'metric');
+	}
+	return url.toString();
+}
+
+function cleanApiMessage(text) {
+	if(!text) return '';
+	try {
+		const json = JSON.parse(text);
+		return json.message || json.error || text;
+	} catch {
+		return text.replace(/<[^>]*>/g, '').trim();
+	}
+}
+
+function userFacingWeatherError(status, text) {
+	const detail = cleanApiMessage(text);
+	if(status === 400) return detail || 'The weather request was not valid.';
+	if(status === 401 || status === 403) return 'Weather access is not authorized. Check the configured API key.';
+	if(status === 404) return detail || 'No weather data was found for that city.';
+	if(status === 429) return 'The weather service is rate limited. Try again in a minute.';
+	if(status >= 500) return 'The weather service is temporarily unavailable.';
+	return detail || 'Weather data could not be loaded.';
+}
+
 async function fetchJSON(url){
-	const res = await fetch(url);
-	if(!res.ok) throw new Error(await res.text());
+	let res;
+	try {
+		res = await fetch(url);
+	} catch (err) {
+		throw new WeatherRequestError('Network connection failed. Check your connection and try again.', {
+			kind: 'network',
+			details: err.message
+		});
+	}
+
+	if(!res.ok) {
+		const text = await res.text();
+		throw new WeatherRequestError(userFacingWeatherError(res.status, text), {
+			status: res.status,
+			details: text
+		});
+	}
 	return res.json();
+}
+
+async function fetchWeather(endpoint, params = {}, options = {}) {
+	try {
+		return await fetchJSON(buildWeatherProxyUrl(endpoint, params));
+	} catch (proxyErr) {
+		if(hasClientApiKey()) {
+			return fetchJSON(buildOpenWeatherUrl(endpoint, params));
+		}
+		if(options.silent) throw proxyErr;
+		const proxyLooksMissing = proxyErr.status === 404 && /not found/i.test(proxyErr.details || '') && !/city/i.test(proxyErr.details || '');
+		if(!proxyLooksMissing) throw proxyErr;
+		const message = proxyLooksMissing
+			? 'Weather service is not configured for this environment.'
+			: proxyErr.message;
+		throw new WeatherRequestError(message, {
+			status: proxyErr.status,
+			kind: 'config',
+			details: proxyErr.details || proxyErr.message
+		});
+	}
 }
 
 async function fetchWithRetry(url, options, retries = 3){
@@ -391,6 +541,7 @@ function formatDate(dt){
 }
 
 function setLoading(){
+	clearWeatherStatus();
 	elements.temp.textContent = '…';
 	elements.desc.textContent = 'Loading…';
 	elements.forecast.innerHTML = '<div class="loading-placeholder">Loading forecast…</div>';
@@ -413,6 +564,90 @@ function setAISummary(text, isLoading){
 	if(!elements.aiSummary || !elements.aiSummaryText) return;
 	elements.aiSummaryText.textContent = text;
 	elements.aiSummary.classList.toggle('loading', Boolean(isLoading));
+}
+
+function clearWeatherStatus() {
+	if(!elements.weatherStatus) return;
+	elements.weatherStatus.hidden = true;
+	elements.weatherStatus.textContent = '';
+}
+
+function showWeatherStatus({ title, message, actionLabel, onAction, allowLocalKey = false }) {
+	const el = elements.weatherStatus;
+	if(!el) return;
+	el.textContent = '';
+	el.hidden = false;
+
+	const body = document.createElement('div');
+	body.className = 'weather-status-body';
+
+	const titleEl = document.createElement('div');
+	titleEl.className = 'weather-status-title';
+	titleEl.textContent = title;
+	body.appendChild(titleEl);
+
+	const textEl = document.createElement('div');
+	textEl.className = 'weather-status-text';
+	textEl.textContent = message;
+	body.appendChild(textEl);
+	el.appendChild(body);
+
+	const actions = document.createElement('div');
+	actions.className = 'weather-status-actions';
+
+	if(actionLabel && typeof onAction === 'function') {
+		const retry = document.createElement('button');
+		retry.type = 'button';
+		retry.className = 'weather-status-btn';
+		retry.textContent = actionLabel;
+		retry.addEventListener('click', onAction);
+		actions.appendChild(retry);
+	}
+
+	if(allowLocalKey) {
+		const form = document.createElement('form');
+		form.className = 'weather-key-form';
+		const label = document.createElement('label');
+		label.className = 'sr-only';
+		label.setAttribute('for', 'weather-api-key-input');
+		label.textContent = 'OpenWeatherMap API key';
+
+		const input = document.createElement('input');
+		input.id = 'weather-api-key-input';
+		input.type = 'password';
+		input.autocomplete = 'off';
+		input.placeholder = 'OpenWeatherMap API key';
+		input.required = true;
+
+		const save = document.createElement('button');
+		save.type = 'submit';
+		save.className = 'weather-status-btn weather-status-btn--primary';
+		save.textContent = 'Use local key';
+
+		form.append(label, input, save);
+		form.addEventListener('submit', event => {
+			event.preventDefault();
+			if(!input.value.trim()) return;
+			saveClientApiKey(input.value);
+			clearWeatherStatus();
+			if(typeof onAction === 'function') onAction();
+		});
+		actions.appendChild(form);
+	}
+
+	if(actions.children.length > 0) el.appendChild(actions);
+}
+
+function showWeatherError(err, retry) {
+	const isConfig = err instanceof WeatherRequestError && err.kind === 'config';
+	const canUseLocalKey = !hasClientApiKey() && (isConfig || [401, 403, 500].includes(err.status));
+	showWeatherStatus({
+		title: canUseLocalKey ? 'Weather source needs setup' : 'Weather data unavailable',
+		message: err.message || 'The weather request failed.',
+		actionLabel: 'Try again',
+		onAction: retry,
+		allowLocalKey: canUseLocalKey
+	});
 }
 
 function getLocalHour(dt, tzOffset){
@@ -604,7 +839,8 @@ setInterval(updateLastUpdated, 60000);
 
 function updateMap(lat, lon){
 	const bbox = `${lon - 0.15},${lat - 0.2},${lon + 0.15},${lat + 0.2}`;
-	elements.weatherMap.src = `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
+	queueMapFrameSrc(`https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`);
+	elements.weatherMap.title = `Weather map centered at ${lat.toFixed(3)}, ${lon.toFixed(3)}`;
 }
 
 // ===== FORECAST TAB LOGIC =====
@@ -630,6 +866,7 @@ function renderForecast7Days(list, maxDays){
 
 	const dailyArr = Object.values(dailyMap);
 	const days = dailyArr.slice(0, maxDays || 6);
+	const fragment = document.createDocumentFragment();
 
 	days.forEach((day, index) => {
 		const el = document.createElement('div');
@@ -656,13 +893,14 @@ function renderForecast7Days(list, maxDays){
 			<div class="ftemp-low">${minTemp}${unitLabel()}</div>
 			${popPct > 0 ? `
 			<div class="fpop-bar" title="${popPct}% chance of rain">
-				<div class="fpop-fill" style="width:${popPct}%;background:${popColor}"></div>
+				<div class="fpop-fill" style="transform:scaleX(${popPct / 100});background:${popColor}"></div>
 			</div>
 			<div class="fpop-label" style="color:${popColor}">${popPct}%</div>
 			` : ''}
 		`;
-		elements.forecast.appendChild(el);
+		fragment.appendChild(el);
 	});
+	elements.forecast.appendChild(fragment);
 }
 
 // Forecast tab click handlers
@@ -671,8 +909,12 @@ elements.forecastTabs.addEventListener('click', (e) => {
 	if(!btn) return;
 
 	// Update active state
-	elements.forecastTabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+	elements.forecastTabs.querySelectorAll('.tab-btn').forEach(b => {
+		b.classList.remove('active');
+		b.setAttribute('aria-pressed', 'false');
+	});
 	btn.classList.add('active');
+	btn.setAttribute('aria-pressed', 'true');
 
 	// Re-render with selected day count
 	activeForecastDays = parseInt(btn.dataset.days);
@@ -684,9 +926,15 @@ elements.forecastTabs.addEventListener('click', (e) => {
 // ===== SUMMARY TAB LOGIC =====
 function switchSummaryPanel(viewName){
 	// Update panels
-	document.querySelectorAll('.summary-panel').forEach(p => p.classList.remove('active'));
+	document.querySelectorAll('.summary-panel').forEach(p => {
+		p.classList.remove('active');
+		p.hidden = true;
+	});
 	const target = document.getElementById(`panel-${viewName}`);
-	if(target) target.classList.add('active');
+	if(target) {
+		target.hidden = false;
+		target.classList.add('active');
+	}
 
 	if (viewName === 'summary' && hourlyData.length > 0) {
 		setTimeout(() => renderSummaryChart(forecastList), 50);
@@ -706,8 +954,12 @@ elements.summaryTabs.addEventListener('click', (e) => {
 	const btn = e.target.closest('.tab-btn');
 	if(!btn) return;
 
-	elements.summaryTabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+	elements.summaryTabs.querySelectorAll('.tab-btn').forEach(b => {
+		b.classList.remove('active');
+		b.setAttribute('aria-selected', 'false');
+	});
 	btn.classList.add('active');
+	btn.setAttribute('aria-selected', 'true');
 
 	switchSummaryPanel(btn.dataset.view);
 });
@@ -843,7 +1095,7 @@ function renderSummaryChart(list){
 		ctx.stroke();
 
 		ctx.fillStyle = 'rgba(255,255,255,0.5)';
-		ctx.font = '11px Inter, -apple-system, sans-serif';
+		ctx.font = '11px system-ui, -apple-system, sans-serif';
 		ctx.textAlign = 'right';
 		ctx.fillText(`${Math.round(t)}°`, padL - 8, y + 4);
 	}
@@ -888,7 +1140,7 @@ function renderSummaryChart(list){
 
 	// Draw X-axis labels
 	ctx.fillStyle = 'rgba(255,255,255,0.5)';
-	ctx.font = '10px Inter, -apple-system, sans-serif';
+	ctx.font = '10px system-ui, -apple-system, sans-serif';
 	ctx.textAlign = 'center';
 	labels.forEach((lbl, i) => {
 		ctx.fillText(lbl, xPos(i), H - padB + 18);
@@ -896,57 +1148,86 @@ function renderSummaryChart(list){
 
 	// Chart title
 	ctx.fillStyle = 'rgba(255,255,255,0.4)';
-	ctx.font = '11px Inter, -apple-system, sans-serif';
+	ctx.font = '11px system-ui, -apple-system, sans-serif';
 	ctx.textAlign = 'left';
 	ctx.fillText('Temperature (next 24h)', padL, padT - 12);
+	canvas.setAttribute(
+		'aria-label',
+		`Temperature chart for the next 24 hours. Range ${formatTemp(Math.min(...temps))} to ${formatTemp(Math.max(...temps))}.`
+	);
 }
 
 // ===== POPULAR CITIES =====
-async function updatePopularCities(){
-	const cities = [
-		{ label: 'Manila', query: 'Manila,PH' },
-		{ label: 'Quezon City', query: 'Quezon City,PH' },
-		{ label: 'Makati', query: 'Makati,PH' },
-		{ label: 'Cebu City', query: 'Cebu City,PH' },
-		{ label: 'Davao City', query: 'Davao City,PH' }
-	];
-	const listEl = document.getElementById('cities-list');
+const POPULAR_CITIES = [
+	{ label: 'Manila', query: 'Manila,PH' },
+	{ label: 'Quezon City', query: 'Quezon City,PH' },
+	{ label: 'Makati', query: 'Makati,PH' },
+	{ label: 'Cebu City', query: 'Cebu City,PH' },
+	{ label: 'Davao City', query: 'Davao City,PH' }
+];
+let popularCitiesCache = null;
+let popularCitiesRefreshQueued = false;
 
+function renderPopularCities(results = popularCitiesCache) {
+	const listEl = document.getElementById('cities-list');
+	if (!listEl || !results) return;
+
+	const fragment = document.createDocumentFragment();
+	results.forEach(({ city, data }) => {
+		const div = document.createElement('div');
+		div.className = 'city-item';
+		div.style.cursor = 'pointer';
+
+		if(data){
+			const icon = weatherIcon(data.weather[0].main, 'weather-svg city-svg');
+			const temp = formatTemp(data.main.temp);
+			const desc = data.weather[0].description.replace(/\b\w/g, c => c.toUpperCase());
+			div.innerHTML = `
+				<span class="city-name">${icon} ${escapeHTML(city.label)}</span>
+				<span class="city-temp">${temp}</span>
+				<span class="city-condition">${escapeHTML(desc)}</span>
+			`;
+			div.addEventListener('click', () => {
+				elements.cityInput.value = city.label;
+				getWeatherByCity(city.query);
+			});
+		} else {
+			div.innerHTML = `
+				<span class="city-name">${escapeHTML(city.label)}</span>
+				<span class="city-condition">Unavailable</span>
+			`;
+		}
+		fragment.appendChild(div);
+	});
+	listEl.replaceChildren(fragment);
+}
+
+function schedulePopularCitiesRefresh({ force = false } = {}) {
+	if (!force && popularCitiesCache) {
+		renderPopularCities();
+		return;
+	}
+	if (popularCitiesRefreshQueued) return;
+	popularCitiesRefreshQueued = true;
+	runAfterCriticalWork(() => {
+		popularCitiesRefreshQueued = false;
+		updatePopularCities({ force });
+	}, 1800);
+}
+
+async function updatePopularCities({ force = false } = {}){
+	if (!force && popularCitiesCache) {
+		renderPopularCities();
+		return;
+	}
 	try {
-		const promises = cities.map(city => {
-			const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city.query)}&units=metric&appid=${API_KEY}`;
-			return fetchJSON(url).catch(() => null);
+		const promises = POPULAR_CITIES.map(city => {
+			return fetchWeather('weather', { q: city.query, units: 'metric' }, { silent: true }).catch(() => null);
 		});
 
 		const results = await Promise.all(promises);
-		listEl.innerHTML = '';
-
-		results.forEach((data, i) => {
-			const div = document.createElement('div');
-			div.className = 'city-item';
-			div.style.cursor = 'pointer';
-
-			if(data){
-				const icon = weatherIcon(data.weather[0].main, 'weather-svg city-svg');
-				const temp = formatTemp(data.main.temp);
-				const desc = data.weather[0].description.replace(/\b\w/g, c => c.toUpperCase());
-				div.innerHTML = `
-					<span class="city-name">${icon} ${escapeHTML(cities[i].label)}</span>
-					<span class="city-temp">${temp}</span>
-					<span class="city-condition">${escapeHTML(desc)}</span>
-				`;
-				div.addEventListener('click', () => {
-					elements.cityInput.value = cities[i].label;
-					getWeatherByCity(cities[i].query);
-				});
-			} else {
-				div.innerHTML = `
-					<span class="city-name">${cities[i].label}</span>
-					<span class="city-condition">Unavailable</span>
-				`;
-			}
-			listEl.appendChild(div);
-		});
+		popularCitiesCache = POPULAR_CITIES.map((city, i) => ({ city, data: results[i] }));
+		renderPopularCities();
 	} catch(e) {
 		// Silently fail, keep static cities
 	}
@@ -974,10 +1255,13 @@ async function updatePopularCities(){
 	function openDropdown() {
 		dropdown.removeAttribute('hidden');
 		input.classList.add('dropdown-open');
+		input.setAttribute('aria-expanded', 'true');
 	}
 	function closeDropdown() {
 		dropdown.setAttribute('hidden', '');
 		input.classList.remove('dropdown-open');
+		input.setAttribute('aria-expanded', 'false');
+		input.removeAttribute('aria-activedescendant');
 		activeIdx = -1;
 		currentItems = [];
 	}
@@ -1007,7 +1291,9 @@ async function updatePopularCities(){
 		const btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'sd-item';
+		btn.id = `search-option-${currentItems.length}-${cityName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 		btn.setAttribute('role', 'option');
+		btn.setAttribute('aria-selected', 'false');
 		btn.dataset.city = cityName;
 
 		const icon = weatherData ? weatherIcon(weatherData.weather[0].main, 'weather-svg sd-svg') : uiIcon('globe', 'ui-icon', 'City');
@@ -1147,14 +1433,23 @@ async function updatePopularCities(){
 
 	// ── Keyboard navigation ───────────────────────────────────────────────
 	function updateActiveItem(newIdx) {
-		currentItems.forEach((el, i) => el.classList.toggle('sd-active', i === newIdx));
+		currentItems.forEach((el, i) => {
+			const isActive = i === newIdx;
+			el.classList.toggle('sd-active', isActive);
+			el.setAttribute('aria-selected', String(isActive));
+		});
 		if (currentItems[newIdx]) {
+			input.setAttribute('aria-activedescendant', currentItems[newIdx].id);
 			currentItems[newIdx].scrollIntoView({ block: 'nearest' });
 		}
 		activeIdx = newIdx;
 	}
 
 	input.addEventListener('keydown', e => {
+		if (e.key === 'Escape') {
+			closeDropdown();
+			return;
+		}
 		if (!currentItems.length) return;
 		if (e.key === 'ArrowDown') {
 			e.preventDefault();
@@ -1165,8 +1460,6 @@ async function updatePopularCities(){
 		} else if (e.key === 'Enter' && activeIdx >= 0) {
 			e.preventDefault();
 			selectCity(currentItems[activeIdx].dataset.city);
-		} else if (e.key === 'Escape') {
-			closeDropdown();
 		}
 	});
 
@@ -1193,19 +1486,33 @@ elements.form.addEventListener('submit', e => {
 });
 
 elements.geoBtn.addEventListener('click', () => {
-	if(!navigator.geolocation) return alert('Geolocation not supported');
+	if(!navigator.geolocation) {
+		showWeatherStatus({
+			title: 'Location is unavailable',
+			message: 'This browser does not support geolocation. Search for a city instead.'
+		});
+		return;
+	}
 	navigator.geolocation.getCurrentPosition(pos => {
 		getWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
-	}, err => alert('Geolocation error: ' + err.message));
+	}, err => showWeatherStatus({
+		title: 'Location permission failed',
+		message: err.message || 'Search for a city instead.'
+	}));
 });
 
 // Handle chart resize
+let resizeChartFrame = 0;
 window.addEventListener('resize', () => {
 	if (hourlyData.length === 0) return;
-	const summaryPanel = document.getElementById('panel-summary');
-	if (summaryPanel?.classList.contains('active')) renderSummaryChart(forecastList);
-	const feelPanel = document.getElementById('panel-feellike');
-	if (feelPanel?.classList.contains('active')) renderFeelLikeChart(forecastList);
+	if (resizeChartFrame) cancelAnimationFrame(resizeChartFrame);
+	resizeChartFrame = requestAnimationFrame(() => {
+		resizeChartFrame = 0;
+		const summaryPanel = document.getElementById('panel-summary');
+		if (summaryPanel?.classList.contains('active')) renderSummaryChart(forecastList);
+		const feelPanel = document.getElementById('panel-feellike');
+		if (feelPanel?.classList.contains('active')) renderFeelLikeChart(forecastList);
+	});
 });
 
 // Toast notification utility (used by modals, share, city load)
@@ -1255,17 +1562,17 @@ function updateWeatherBackground(weatherData) {
 			moon.className = 'moon-orb';
 			bg.appendChild(moon);
 			// Stars
-			for (let i = 0; i < 90; i++) {
+			for (let i = 0; i < 36; i++) {
 				const star = document.createElement('div');
 				star.className = 'star';
-				const size = Math.random() * 2 + 0.8;
+				const size = Math.random() * 1.6 + 0.7;
 				star.style.cssText = [
 					`left:${Math.random() * 100}%`,
 					`top:${Math.random() * 75}%`,
 					`width:${size}px`,
 					`height:${size}px`,
 					`animation-delay:${(Math.random() * 3).toFixed(2)}s`,
-					`animation-duration:${(Math.random() * 2 + 1.5).toFixed(2)}s`
+					`animation-duration:${(Math.random() * 3 + 2.5).toFixed(2)}s`
 				].join(';');
 				bg.appendChild(star);
 			}
@@ -1275,23 +1582,23 @@ function updateWeatherBackground(weatherData) {
 			const flash = document.createElement('div');
 			flash.className = 'lightning-flash';
 			bg.appendChild(flash);
-			spawnRaindrops(bg, 90, true);
+			spawnRaindrops(bg, 38, true);
 		} else if (cond.includes('rain') || cond.includes('drizzle')) {
 			bg.classList.add('bg-rain');
-			spawnRaindrops(bg, 55, false);
+			spawnRaindrops(bg, 24, false);
 		} else if (cond.includes('snow')) {
 			bg.classList.add('bg-snow');
-			for (let i = 0; i < 38; i++) {
+			for (let i = 0; i < 18; i++) {
 				const flake = document.createElement('div');
 				flake.className = 'snowflake';
-				const size = Math.random() * 5 + 4;
+				const size = Math.random() * 4 + 3;
 				flake.style.cssText = [
 					`left:${Math.random() * 100}%`,
 					`width:${size.toFixed(1)}px`,
 					`height:${size.toFixed(1)}px`,
 					`animation-delay:${(Math.random() * 6).toFixed(2)}s`,
-					`animation-duration:${(Math.random() * 3 + 4).toFixed(2)}s`,
-					`opacity:${(Math.random() * 0.5 + 0.25).toFixed(2)}`
+					`animation-duration:${(Math.random() * 4 + 6).toFixed(2)}s`,
+					`opacity:${(Math.random() * 0.25 + 0.18).toFixed(2)}`
 				].join(';');
 				bg.appendChild(flake);
 			}
@@ -1304,7 +1611,7 @@ function updateWeatherBackground(weatherData) {
 			core.className = 'sun-core';
 			const raysWrap = document.createElement('div');
 			raysWrap.className = 'sun-rays';
-			const RAY_COUNT = 8;
+			const RAY_COUNT = 6;
 			for (let i = 0; i < RAY_COUNT; i++) {
 				const ray = document.createElement('div');
 				ray.className = 'sun-ray';
@@ -1317,24 +1624,24 @@ function updateWeatherBackground(weatherData) {
 		} else if (cond.includes('cloud') || cond.includes('overcast')) {
 			bg.classList.add('bg-cloudy');
 			// Drifting cloud blobs
-			for (let i = 0; i < 4; i++) {
+			for (let i = 0; i < 2; i++) {
 				const cloud = document.createElement('div');
 				cloud.className = 'cloud-shape';
-				const w = 200 + Math.random() * 300;
-				const h = 80 + Math.random() * 120;
+				const w = 190 + Math.random() * 220;
+				const h = 70 + Math.random() * 90;
 				cloud.style.cssText = [
 					`top:${5 + Math.random() * 45}%`,
 					`width:${w}px`,
 					`height:${h}px`,
 					`animation-delay:${(Math.random() * 20).toFixed(0)}s`,
-					`animation-duration:${(40 + Math.random() * 30).toFixed(0)}s`
+					`animation-duration:${(58 + Math.random() * 38).toFixed(0)}s`
 				].join(';');
 				bg.appendChild(cloud);
 			}
 		} else {
 			// Mist / fog / haze — subtle clouds
 			bg.classList.add('bg-mist');
-			for (let i = 0; i < 3; i++) {
+			for (let i = 0; i < 2; i++) {
 				const cloud = document.createElement('div');
 				cloud.className = 'cloud-shape';
 				cloud.style.cssText = [
@@ -1342,15 +1649,15 @@ function updateWeatherBackground(weatherData) {
 					`width:${300 + Math.random() * 250}px`,
 					`height:${100 + Math.random() * 100}px`,
 					`animation-delay:${(Math.random() * 15).toFixed(0)}s`,
-					`animation-duration:${(50 + Math.random() * 30).toFixed(0)}s`,
-					`opacity:0.04`
+					`animation-duration:${(66 + Math.random() * 36).toFixed(0)}s`,
+					`opacity:0.03`
 				].join(';');
 				bg.appendChild(cloud);
 			}
 		}
 
 		// Fade back in
-		bg.style.opacity = '1';
+		bg.style.opacity = '0.46';
 	}, 300);
 }
 
@@ -1358,13 +1665,13 @@ function spawnRaindrops(container, count, heavy) {
 	for (let i = 0; i < count; i++) {
 		const drop = document.createElement('div');
 		drop.className = heavy ? 'raindrop heavy' : 'raindrop';
-		const h = heavy ? (Math.random() * 14 + 10) : (Math.random() * 10 + 8);
+		const h = heavy ? (Math.random() * 11 + 9) : (Math.random() * 8 + 7);
 		drop.style.cssText = [
 			`left:${Math.random() * 100}%`,
 			`height:${h.toFixed(0)}px`,
 			`animation-delay:${(Math.random() * 2).toFixed(2)}s`,
-			`animation-duration:${(Math.random() * 0.4 + (heavy ? 0.45 : 0.6)).toFixed(2)}s`,
-			`opacity:${(Math.random() * 0.35 + 0.2).toFixed(2)}`
+			`animation-duration:${(Math.random() * 0.7 + (heavy ? 0.75 : 0.95)).toFixed(2)}s`,
+			`opacity:${(Math.random() * 0.16 + 0.12).toFixed(2)}`
 		].join(';');
 		container.appendChild(drop);
 	}
@@ -1754,7 +2061,7 @@ function renderFeelLikeChart(list) {
 		const y = yPos(t);
 		ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
 		ctx.fillStyle = 'rgba(255,255,255,0.45)';
-		ctx.font = '10px Inter, sans-serif';
+		ctx.font = '10px system-ui, sans-serif';
 		ctx.textAlign = 'right';
 		ctx.fillText(`${Math.round(t)}°`, padL - 6, y + 4);
 	}
@@ -1765,14 +2072,14 @@ function renderFeelLikeChart(list) {
 		const barH = (h / 100) * plotH;
 		const x = xPos(i) - barW / 2;
 		const y = padT + plotH - barH;
-		ctx.fillStyle = 'rgba(96,165,250,0.13)';
+		ctx.fillStyle = 'rgba(134,182,232,0.10)';
 		ctx.beginPath();
 		ctx.roundRect(x, y, barW, barH, 3);
 		ctx.fill();
 	});
 	// Humidity axis labels (right)
-	ctx.fillStyle = 'rgba(96,165,250,0.55)';
-	ctx.font = '9px Inter, sans-serif';
+	ctx.fillStyle = 'rgba(134,182,232,0.48)';
+	ctx.font = '9px system-ui, sans-serif';
 	ctx.textAlign = 'left';
 	ctx.fillText('100%', W - padR + 5, padT + 4);
 	ctx.fillText('0%',   W - padR + 5, padT + plotH + 4);
@@ -1824,8 +2131,8 @@ function renderFeelLikeChart(list) {
 		const diff = Math.round(feelsLike[i] - temps[i]);
 		if (diff !== 0) {
 			const midY = (yPos(temps[i]) + yPos(feelsLike[i])) / 2;
-			ctx.fillStyle = diff > 0 ? 'rgba(249,115,22,0.7)' : 'rgba(96,165,250,0.7)';
-			ctx.font = 'bold 9px Inter, sans-serif';
+			ctx.fillStyle = diff > 0 ? 'rgba(249,115,22,0.7)' : 'rgba(134,182,232,0.62)';
+			ctx.font = 'bold 9px system-ui, sans-serif';
 			ctx.textAlign = 'center';
 			ctx.fillText(`${diff > 0 ? '+' : ''}${diff}°`, xPos(i) + 10, midY);
 		}
@@ -1833,15 +2140,19 @@ function renderFeelLikeChart(list) {
 
 	// X-axis labels
 	ctx.fillStyle = 'rgba(255,255,255,0.45)';
-	ctx.font = '10px Inter, sans-serif';
+	ctx.font = '10px system-ui, sans-serif';
 	ctx.textAlign = 'center';
 	labels.forEach((lbl, i) => ctx.fillText(lbl, xPos(i), H - padB + 16));
 
 	// Chart title
 	ctx.fillStyle = 'rgba(255,255,255,0.35)';
-	ctx.font = '11px Inter, sans-serif';
+	ctx.font = '11px system-ui, sans-serif';
 	ctx.textAlign = 'left';
 	ctx.fillText('Actual vs Feels Like · next 24h', padL, padT - 10);
+	canvas.setAttribute(
+		'aria-label',
+		`Feels-like temperature chart for the next 24 hours. Actual range ${formatTemp(Math.min(...temps))} to ${formatTemp(Math.max(...temps))}; feels-like range ${formatTemp(Math.min(...feelsLike))} to ${formatTemp(Math.max(...feelsLike))}.`
+	);
 }
 
 // ============================================================
@@ -1864,12 +2175,12 @@ const EMERGENCY_ALERT_KEYS = new Set([
 ]);
 
 function _getDismissed() {
-	try { return new Set(JSON.parse(sessionStorage.getItem(DISMISSED_ALERTS_KEY) || '[]')); }
+	try { return new Set(JSON.parse(readStorage(sessionStorage, DISMISSED_ALERTS_KEY, '[]'))); }
 	catch { return new Set(); }
 }
 
 function _saveDismissed(set) {
-	sessionStorage.setItem(DISMISSED_ALERTS_KEY, JSON.stringify([...set]));
+	writeStorage(sessionStorage, DISMISSED_ALERTS_KEY, JSON.stringify([...set]));
 }
 
 function _dismissKey(city, alertKey) { return `${city}::${alertKey}`; }
@@ -2044,14 +2355,15 @@ function renderAlertsBanner(alerts, city, quiet = false) {
 }
 
 async function getWeatherByCity(city) {
-	if (!ensureApiKey()) return;
+	const requestId = ++activeWeatherRequestId;
 	setLoading();
 	_currentAlertSignature = ''; // reset so new city always evaluates alerts fresh
 	try {
-		const curUrl = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
-		const cur = await fetchJSON(curUrl);
-		const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
-		const f = await fetchJSON(forecastUrl);
+		const [cur, f] = await Promise.all([
+			fetchWeather('weather', { q: city, units: 'metric' }),
+			fetchWeather('forecast', { q: city, units: 'metric' })
+		]);
+		if(requestId !== activeWeatherRequestId) return;
 		currentWeatherData = cur;
 		forecastList = f.list;
 		hourlyData = f.list.slice(0, 8);
@@ -2063,27 +2375,32 @@ async function getWeatherByCity(city) {
 		renderFeelLikeChart(f.list);
 		updateMap(cur.coord.lat, cur.coord.lon);
 		generateAISummary(cur, f.list);
-		updatePopularCities();
-		fetchUVIndex(cur.coord.lat, cur.coord.lon).then(renderUVIndex);
+		schedulePopularCitiesRefresh();
+		fetchUVIndex(cur.coord.lat, cur.coord.lon).then(uv => {
+			if(requestId === activeWeatherRequestId) renderUVIndex(uv);
+		});
+		clearWeatherStatus();
 	} catch (err) {
-		alert('Error: ' + err.message);
+		if(requestId !== activeWeatherRequestId) return;
+		showWeatherError(err, () => getWeatherByCity(city));
 		elements.temp.textContent = '--';
 		elements.desc.textContent = '--';
 		setAISummary('AI summary unavailable.', false);
 	} finally {
-		clearLoading();
+		if(requestId === activeWeatherRequestId) clearLoading();
 	}
 }
 
 async function getWeatherByCoords(lat, lon) {
-	if (!ensureApiKey()) return;
+	const requestId = ++activeWeatherRequestId;
 	setLoading();
 	_currentAlertSignature = ''; // reset so location change always re-evaluates alerts
 	try {
-		const curUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
-		const cur = await fetchJSON(curUrl);
-		const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`;
-		const f = await fetchJSON(forecastUrl);
+		const [cur, f] = await Promise.all([
+			fetchWeather('weather', { lat, lon, units: 'metric' }),
+			fetchWeather('forecast', { lat, lon, units: 'metric' })
+		]);
+		if(requestId !== activeWeatherRequestId) return;
 		currentWeatherData = cur;
 		forecastList = f.list;
 		hourlyData = f.list.slice(0, 8);
@@ -2095,15 +2412,102 @@ async function getWeatherByCoords(lat, lon) {
 		renderFeelLikeChart(f.list);
 		updateMap(lat, lon);
 		generateAISummary(cur, f.list);
-		updatePopularCities();
-		fetchUVIndex(lat, lon).then(renderUVIndex);
+		schedulePopularCitiesRefresh();
+		fetchUVIndex(lat, lon).then(uv => {
+			if(requestId === activeWeatherRequestId) renderUVIndex(uv);
+		});
+		clearWeatherStatus();
 	} catch (err) {
-		alert('Error: ' + err.message);
+		if(requestId !== activeWeatherRequestId) return;
+		showWeatherError(err, () => getWeatherByCoords(lat, lon));
 		setAISummary('AI summary unavailable.', false);
 	} finally {
-		clearLoading();
+		if(requestId === activeWeatherRequestId) clearLoading();
 	}
 }
+
+const modalState = new Map();
+
+function getFocusableElements(container) {
+	return [...container.querySelectorAll([
+		'a[href]',
+		'button:not([disabled])',
+		'input:not([disabled])',
+		'select:not([disabled])',
+		'textarea:not([disabled])',
+		'[tabindex]:not([tabindex="-1"])'
+	].join(','))].filter(el => !el.hasAttribute('hidden') && el.offsetParent !== null);
+}
+
+function setAppInert(isInert) {
+	const app = document.querySelector('.app');
+	if(!app) return;
+	if('inert' in app) app.inert = isInert;
+	if(isInert) {
+		app.setAttribute('aria-hidden', 'true');
+	} else {
+		app.removeAttribute('aria-hidden');
+	}
+}
+
+function openManagedModal(modal, focusTarget) {
+	if(!modal) return;
+	const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	modalState.set(modal, { opener });
+	modal.style.display = 'flex';
+	modal.removeAttribute('aria-hidden');
+	document.body.style.overflow = 'hidden';
+	const firstFocusable = getFocusableElements(modal)[0];
+	(focusTarget || firstFocusable || modal).focus({ preventScroll: true });
+	setAppInert(true);
+}
+
+function closeManagedModal(modal) {
+	if(!modal) return;
+	const state = modalState.get(modal);
+	modal.style.display = 'none';
+	modal.setAttribute('aria-hidden', 'true');
+	modalState.delete(modal);
+	const anyOpen = [...modalState.keys()].some(openModal => openModal.style.display !== 'none');
+	if(!anyOpen) {
+		document.body.style.overflow = '';
+		setAppInert(false);
+	}
+	if(state?.opener?.isConnected) state.opener.focus();
+}
+
+function getActiveModal() {
+	return [...modalState.keys()].reverse().find(modal => modal.style.display !== 'none') || null;
+}
+
+document.addEventListener('keydown', event => {
+	const modal = getActiveModal();
+	if(!modal) return;
+
+	if(event.key === 'Escape') {
+		event.preventDefault();
+		if(modal === compareModal) closeCompareModal();
+		if(modal === citiesModal) closeCitiesModal();
+		return;
+	}
+
+	if(event.key !== 'Tab') return;
+	const focusable = getFocusableElements(modal);
+	if(focusable.length === 0) {
+		event.preventDefault();
+		modal.focus();
+		return;
+	}
+	const first = focusable[0];
+	const last = focusable[focusable.length - 1];
+	if(event.shiftKey && document.activeElement === first) {
+		event.preventDefault();
+		last.focus();
+	} else if(!event.shiftKey && document.activeElement === last) {
+		event.preventDefault();
+		first.focus();
+	}
+});
 
 let pinnedCities = [];
 
@@ -2121,15 +2525,12 @@ compareAddBtn?.addEventListener('click', addCompareCity);
 compareCityInput?.addEventListener('keydown', e => { if (e.key === 'Enter') addCompareCity(); });
 
 function openCompareModal() {
-	compareModal.style.display = 'flex';
-	document.body.style.overflow = 'hidden';
-	compareCityInput.focus();
+	openManagedModal(compareModal, compareCityInput);
 	renderCompareGrid();
 }
 
 function closeCompareModal() {
-	compareModal.style.display = 'none';
-	document.body.style.overflow = '';
+	closeManagedModal(compareModal);
 }
 
 async function addCompareCity() {
@@ -2155,14 +2556,20 @@ async function addCompareCity() {
 	compareGrid.appendChild(tempDiv);
 
 	try {
-		const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(city)}&units=metric&appid=${API_KEY}`;
-		const data = await fetchJSON(url);
+		const data = await fetchWeather('weather', { q: city, units: 'metric' });
 		pinnedCities.push(data);
 		document.getElementById(tempId)?.remove();
 		renderCompareGrid();
 	} catch (err) {
 		document.getElementById(tempId)?.remove();
-		showNavToast(`"${city}" not found`);
+		if(err instanceof WeatherRequestError && err.kind === 'config') {
+			showWeatherError(err, () => {
+				compareCityInput.value = city;
+				addCompareCity();
+			});
+		} else {
+			showNavToast(`"${city}" not found`);
+		}
 	} finally {
 		compareAddBtn.disabled = false;
 	}
@@ -2242,10 +2649,10 @@ function renderCompareGrid() {
 		card.style.animationDelay = `${i * 0.08}s`;
 
 		if (isBest) card.style.borderColor = 'rgba(249,115,22,0.35)';
-		if (isCool) card.style.borderColor = 'rgba(96,165,250,0.35)';
+		if (isCool) card.style.borderColor = 'rgba(134,182,232,0.24)';
 
 		card.innerHTML = `
-			<button class="compare-card-remove" onclick="removeCompareCity(${i})" title="Remove" aria-label="Remove ${escapeHTML(data.name)}">${uiIcon('x', 'ui-icon')}</button>
+			<button type="button" class="compare-card-remove" data-remove-index="${i}" title="Remove" aria-label="Remove ${escapeHTML(data.name)}">${uiIcon('x', 'ui-icon')}</button>
 			<div class="compare-card-top">
 				<div>
 					<div class="compare-card-city">${escapeHTML(data.name)}</div>
@@ -2275,7 +2682,7 @@ function renderCompareGrid() {
 			</div>
 			<div class="compare-outdoor-score">
 				<div class="outdoor-score-bar-track">
-					<div class="outdoor-score-bar-fill" style="width:${score}%;background:${scoreColor}"></div>
+					<div class="outdoor-score-bar-fill" style="transform:scaleX(${score / 100});background:${scoreColor}"></div>
 				</div>
 				<div class="outdoor-score-label" style="color:${scoreColor}">${scoreText} <span class="outdoor-score-num">${score}/100</span></div>
 			</div>
@@ -2286,6 +2693,7 @@ function renderCompareGrid() {
 			${isBest ? '<div class="compare-temp-note compare-temp-note--hot">Hottest</div>' : ''}
 			${isCool ? '<div class="compare-temp-note compare-temp-note--cool">Coolest</div>' : ''}
 		`;
+		card.querySelector('[data-remove-index]')?.addEventListener('click', () => removeCompareCity(i));
 		compareGrid.appendChild(card);
 	});
 }
@@ -2305,7 +2713,7 @@ document.getElementById('unit-toggle')?.addEventListener('click', () => {
 		renderMoreDetails(currentWeatherData, forecastList);
 		renderOutfitPanel(currentWeatherData);
 		// NOTE: alerts intentionally NOT re-generated here — unit change must not re-show dismissed alerts
-		updatePopularCities();
+		renderPopularCities();
 		if (pinnedCities.length > 0) renderCompareGrid();
 		const activePanel = document.querySelector('.summary-panel.active');
 		if (activePanel?.id === 'panel-summary') renderSummaryChart(forecastList);
@@ -2416,7 +2824,7 @@ function renderSunpathArc(cur, sunriseStr, sunsetStr) {
 
 	// Sunrise label (left)
 	ctx.fillStyle = 'rgba(253,186,16,0.75)';
-	ctx.font = 'bold 11px Inter, sans-serif';
+	ctx.font = 'bold 11px system-ui, sans-serif';
 	ctx.textAlign = 'left';
 	ctx.fillText('Sunrise ' + sunriseStr, cx - rx - 8, cy + 16);
 
@@ -2427,7 +2835,7 @@ function renderSunpathArc(cur, sunriseStr, sunsetStr) {
 	// Center: progress % of day
 	const pctDay = Math.round(progress * 100);
 	ctx.fillStyle = 'rgba(255,255,255,0.5)';
-	ctx.font = '10px Inter, sans-serif';
+	ctx.font = '10px system-ui, sans-serif';
 	ctx.textAlign = 'center';
 	ctx.fillText(pctDay < 100 ? `${pctDay}% of daylight passed` : 'Sun has set', cx, cy + 16);
 }
@@ -2517,31 +2925,59 @@ const citiesModalClose   = document.getElementById('cities-modal-close');
 const citiesModalSearch  = document.getElementById('cities-modal-search');
 const citiesModalRegions = document.getElementById('cities-modal-regions');
 const citiesModalCount   = document.getElementById('cities-modal-count');
+const CITY_WEATHER_CONCURRENCY = 6;
+let cityWeatherQueue = [];
+let activeCityWeatherFetches = 0;
+let cityWeatherQueueToken = 0;
+let citiesModalFilterFrame = 0;
 
 document.getElementById('view-more-btn')?.addEventListener('click', openCitiesModal);
 citiesModalOverlay?.addEventListener('click', closeCitiesModal);
 citiesModalClose?.addEventListener('click', closeCitiesModal);
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && citiesModalOpen) closeCitiesModal();
-});
 
 citiesModalSearch?.addEventListener('input', () => {
-  filterCitiesModal(citiesModalSearch.value.trim().toLowerCase());
+  if (citiesModalFilterFrame) cancelAnimationFrame(citiesModalFilterFrame);
+  citiesModalFilterFrame = requestAnimationFrame(() => {
+    citiesModalFilterFrame = 0;
+    filterCitiesModal(citiesModalSearch.value.trim().toLowerCase());
+  });
 });
 
 function openCitiesModal() {
-  citiesModal.style.display = 'flex';
   citiesModalOpen = true;
-  document.body.style.overflow = 'hidden';
   citiesModalSearch.value = '';
   buildCitiesModalDOM();
-  citiesModalSearch.focus();
+  openManagedModal(citiesModal, citiesModalSearch);
 }
 
 function closeCitiesModal() {
-  citiesModal.style.display = 'none';
   citiesModalOpen = false;
-  document.body.style.overflow = '';
+  resetCityWeatherQueue();
+  closeManagedModal(citiesModal);
+}
+
+function resetCityWeatherQueue() {
+  cityWeatherQueue = [];
+  cityWeatherQueueToken++;
+}
+
+function queueCityWeatherFetch(city, btnEl) {
+  if (!citiesModalOpen || citiesWeatherCache[city]) return;
+  cityWeatherQueue.push({ city, btnEl, token: cityWeatherQueueToken });
+  runCityWeatherQueue();
+}
+
+function runCityWeatherQueue() {
+  while (citiesModalOpen && activeCityWeatherFetches < CITY_WEATHER_CONCURRENCY && cityWeatherQueue.length > 0) {
+    const job = cityWeatherQueue.shift();
+    if (!job || job.token !== cityWeatherQueueToken) continue;
+    activeCityWeatherFetches++;
+    fetchCityWeather(job.city, job.btnEl)
+      .finally(() => {
+        activeCityWeatherFetches = Math.max(0, activeCityWeatherFetches - 1);
+        runCityWeatherQueue();
+      });
+  }
 }
 
 function buildCitiesModalDOM() {
@@ -2578,7 +3014,7 @@ function buildCitiesModalDOM() {
           </div>
           <span class="city-modal-temp loading-temp">...</span>
         `;
-        fetchCityWeather(city, btn);
+        queueCityWeatherFetch(city, btn);
       }
 
       btn.addEventListener('click', () => {
@@ -2611,15 +3047,14 @@ function buildCityCardHTML(data) {
 
 async function fetchCityWeather(city, btnEl) {
   try {
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(`${city},PH`)}&units=metric&appid=${API_KEY}`;
-    const data = await fetchJSON(url);
+    const data = await fetchWeather('weather', { q: `${city},PH`, units: 'metric' }, { silent: true });
     citiesWeatherCache[city] = data;
     // Update the button if still in the DOM
-    if (btnEl && btnEl.isConnected) {
+    if (citiesModalOpen && btnEl && btnEl.isConnected) {
       btnEl.innerHTML = buildCityCardHTML(data);
     }
   } catch {
-    if (btnEl && btnEl.isConnected) {
+    if (citiesModalOpen && btnEl && btnEl.isConnected) {
       btnEl.querySelector('.city-modal-meta').textContent = 'Unavailable';
       btnEl.querySelector('.city-modal-temp').textContent = '--';
       btnEl.querySelector('.city-modal-temp').classList.remove('loading-temp');

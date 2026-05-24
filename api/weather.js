@@ -14,7 +14,7 @@ export default async function handler(request, response) {
 	}
 
 	const { endpoint, ...query } = request.query || {};
-	const allowed = new Set(['weather', 'forecast']);
+	const allowed = new Set(['weather', 'forecast', 'uvi']);
 
 	if (!endpoint || !allowed.has(String(endpoint))) {
 		return response.status(400).json({ error: 'Invalid or missing endpoint' });

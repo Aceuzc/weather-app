@@ -29,11 +29,11 @@
         </div>
         <form id="search-form" class="search-bar">
           <div class="search-autocomplete-wrap">
-            <input id="city-input" type="search" placeholder="Search Philippine cities…" aria-label="Search" autocomplete="off">
+            <input id="city-input" type="search" placeholder="Search Philippine cities…" aria-label="Search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="search-dropdown">
             <div id="search-dropdown" class="search-dropdown" role="listbox" aria-label="City suggestions" hidden></div>
           </div>
           <button type="submit">Search</button>
-          <button type="button" id="geo-btn" title="Use my location" class="geo-btn">
+          <button type="button" id="geo-btn" title="Use my location" aria-label="Use my location" class="geo-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <circle cx="12" cy="12" r="3"/>
               <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
@@ -62,6 +62,7 @@
         </div>
       </div>
 
+      <div id="weather-status" class="weather-status" hidden aria-live="polite"></div>
       <div id="alerts-banner" class="alerts-banner" style="display:none" aria-live="polite"></div>
 
       <!-- Main Grid: Weather | Map | Cities -->
@@ -131,8 +132,8 @@
               <h3>Metro Weather Map</h3>
               <span class="map-tag">Live marker</span>
             </div>
-            <iframe id="weather-map" width="100%" height="100%" frameborder="0"
-              src="https://www.openstreetmap.org/export/embed.html?bbox=120.8%2C14.4%2C121.1%2C14.8&layer=mapnik&marker=14.5995%2C120.9842" style="border-radius: 12px;"></iframe>
+            <iframe id="weather-map" title="Weather map centered on Manila" width="100%" height="100%" frameborder="0" loading="lazy" aria-busy="true"
+              data-src="https://www.openstreetmap.org/export/embed.html?bbox=120.8%2C14.4%2C121.1%2C14.8&layer=mapnik&marker=14.5995%2C120.9842" style="border-radius: 12px;"></iframe>
           </div>
         </div>
 
@@ -178,10 +179,10 @@
         <div class="forecast-section floating-card float-delay-4">
           <div class="section-header">
             <h3>Rain Window</h3>
-            <div class="forecast-tabs" id="forecast-tabs">
-              <button class="tab-btn active" data-days="6">6 Days</button>
-              <button class="tab-btn" data-days="5">5 Days</button>
-              <button class="tab-btn" data-days="3">3 Days</button>
+            <div class="forecast-tabs" id="forecast-tabs" aria-label="Forecast range">
+              <button class="tab-btn active" data-days="6" aria-pressed="true">6 Days</button>
+              <button class="tab-btn" data-days="5" aria-pressed="false">5 Days</button>
+              <button class="tab-btn" data-days="3" aria-pressed="false">3 Days</button>
             </div>
           </div>
           <div class="forecast" id="forecast"></div>
@@ -191,15 +192,15 @@
         <div class="summary-section floating-card float-delay-5">
           <div class="section-header">
             <h3>Field Brief</h3>
-            <div class="summary-tabs" id="summary-tabs">
-              <button class="tab-btn active" data-view="summary">Brief</button>
-              <button class="tab-btn" data-view="hourly">Hourly</button>
-              <button class="tab-btn" data-view="feellike">
+            <div class="summary-tabs" id="summary-tabs" role="tablist" aria-label="Weather summary views">
+              <button id="tab-summary" class="tab-btn active" data-view="summary" role="tab" aria-selected="true" aria-controls="panel-summary">Brief</button>
+              <button id="tab-hourly" class="tab-btn" data-view="hourly" role="tab" aria-selected="false" aria-controls="panel-hourly">Hourly</button>
+              <button id="tab-feellike" class="tab-btn" data-view="feellike" role="tab" aria-selected="false" aria-controls="panel-feellike">
                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 8v7"/></svg>
                 Feel
               </button>
-              <button class="tab-btn" data-view="details">More Details</button>
-              <button class="tab-btn" data-view="outfit">
+              <button id="tab-details" class="tab-btn" data-view="details" role="tab" aria-selected="false" aria-controls="panel-details">More Details</button>
+              <button id="tab-outfit" class="tab-btn" data-view="outfit" role="tab" aria-selected="false" aria-controls="panel-outfit">
                 <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4 5 6l-2 4 4 2 1-2v10h8V10l1 2 4-2-2-4-3-2a4 4 0 0 1-8 0Z"/></svg>
                 Outfit
               </button>
@@ -210,27 +211,27 @@
             <div class="ai-summary-text" id="ai-summary-text">--</div>
           </div>
           <div class="summary-content" id="summary-content">
-            <div class="summary-panel active" id="panel-summary">
+            <div class="summary-panel active" id="panel-summary" role="tabpanel" aria-labelledby="tab-summary">
               <div class="summary-chart" id="summary-chart">
-                <canvas id="chart-canvas"></canvas>
+                <canvas id="chart-canvas" role="img" aria-label="Temperature chart for the next 24 hours">Temperature chart for the next 24 hours.</canvas>
               </div>
             </div>
-            <div class="summary-panel" id="panel-hourly">
+            <div class="summary-panel" id="panel-hourly" role="tabpanel" aria-labelledby="tab-hourly" hidden>
               <div class="hourly-list" id="hourly-list"></div>
             </div>
-            <div class="summary-panel" id="panel-details">
+            <div class="summary-panel" id="panel-details" role="tabpanel" aria-labelledby="tab-details" hidden>
               <div class="details-grid" id="details-grid"></div>
             </div>
             <!-- Outfit / Activity Panel -->
-            <div class="summary-panel" id="panel-outfit">
+            <div class="summary-panel" id="panel-outfit" role="tabpanel" aria-labelledby="tab-outfit" hidden>
               <div class="outfit-content" id="outfit-content">
                 <div class="outfit-placeholder">Search a city to get outfit suggestions</div>
               </div>
             </div>
             <!-- Feel Like Timeline Panel -->
-            <div class="summary-panel" id="panel-feellike">
+            <div class="summary-panel" id="panel-feellike" role="tabpanel" aria-labelledby="tab-feellike" hidden>
               <div class="summary-chart" id="feellike-chart">
-                <canvas id="feellike-canvas"></canvas>
+                <canvas id="feellike-canvas" role="img" aria-label="Feels-like temperature chart for the next 24 hours">Feels-like temperature chart for the next 24 hours.</canvas>
               </div>
             </div>
           </div>
@@ -240,7 +241,7 @@
   </div>
 
   <!-- More Cities Modal -->
-  <div id="cities-modal" class="cities-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="cities-modal-title">
+  <div id="cities-modal" class="cities-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="cities-modal-title" aria-hidden="true" tabindex="-1">
     <div class="cities-modal-overlay" id="cities-modal-overlay"></div>
     <div class="cities-modal-dialog floating-card">
       <div class="cities-modal-header">
@@ -253,7 +254,7 @@
         </button>
       </div>
       <div class="cities-modal-search-row">
-        <input id="cities-modal-search" type="text" class="compare-city-input" placeholder="Filter cities…" autocomplete="off">
+        <input id="cities-modal-search" type="text" class="compare-city-input" placeholder="Filter cities…" autocomplete="off" aria-label="Filter Philippine cities">
         <div id="cities-modal-count" class="cities-modal-count"></div>
       </div>
       <div id="cities-modal-regions" class="cities-modal-regions"></div>
@@ -261,7 +262,7 @@
   </div>
 
   <!-- City Comparison Modal -->
-  <div id="compare-modal" class="compare-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="compare-title">
+  <div id="compare-modal" class="compare-modal" style="display:none" role="dialog" aria-modal="true" aria-labelledby="compare-title" aria-hidden="true" tabindex="-1">
     <div class="compare-overlay" id="compare-overlay"></div>
     <div class="compare-dialog floating-card">
       <div class="compare-header">
@@ -274,8 +275,8 @@
         </button>
       </div>
       <div class="compare-search-row">
-        <input id="compare-city-input" type="text" class="compare-city-input" placeholder="Search a city to add…">
-        <button id="compare-add-btn" class="compare-add-btn">+ Add City</button>
+        <input id="compare-city-input" type="text" class="compare-city-input" placeholder="Search a city to add…" aria-label="City to compare">
+        <button type="button" id="compare-add-btn" class="compare-add-btn">+ Add City</button>
       </div>
       <div id="compare-grid" class="compare-grid">
         <div class="compare-empty">Add cities above to start comparing</div>
